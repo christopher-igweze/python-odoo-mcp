@@ -6,18 +6,38 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from contextlib import asynccontextmanager
 
 from .config import config
+from .auth.header_parser import parse_auth_header, AuthenticationError
+from .auth.scope_validator import ScopeValidator, ScopeValidationError
+from .connection.pool import ConnectionPool
+from .connection.manager import OdooConnectionManager, OdooConnectionError
+from .odoo.client import OdooClient, OdooClientError
+from .tools.tools import TOOLS_REGISTRY
 
 # Configure logging
 logging.basicConfig(level=config.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
+# Global instances
+connection_pool: ConnectionPool = None
+connection_manager: OdooConnectionManager = None
+
 # Lifecycle management
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown"""
+    global connection_pool, connection_manager
+
     logger.info("Starting Python Odoo MCP Server")
     logger.info(f"Pool TTL: {config.CONNECTION_POOL_TTL_MINUTES} minutes")
+
+    # Initialize connection pool
+    connection_pool = ConnectionPool(ttl_minutes=config.CONNECTION_POOL_TTL_MINUTES)
+    connection_manager = OdooConnectionManager(connection_pool)
+
+    logger.info("✓ Connection pool and manager initialized")
+
     yield
+
     logger.info("Shutting down Python Odoo MCP Server")
 
 # Create FastAPI app
@@ -45,9 +65,14 @@ async def root():
 @app.get("/health")
 async def health():
     """Health check endpoint"""
+    global connection_manager
+
+    pool_stats = connection_manager.get_pool_stats() if connection_manager else {}
+
     return {
         "status": "healthy",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "pool": pool_stats
     }
 
 @app.post("/tools/list")
@@ -184,17 +209,134 @@ async def call_tool(
 ):
     """MCP: Call a tool with multi-tenant authentication
 
-    Expects header:
-    X-Auth-Credentials: base64(JSON with url, db, username, password, scope)
-    """
+    Expects:
+    - Header: X-Auth-Credentials: base64(JSON)
+    - Body: {"name": "tool_name", "arguments": {...}}
 
-    # TODO: Implement auth, scope validation, and tool execution
-    # This will be wired up in Phase 6 after all components are ready
-
-    return {
-        "error": "Tool execution not yet implemented",
-        "status": "ready_for_phase_6"
+    JSON format:
+    {
+        "url": "https://company.odoo.com",
+        "database": "company_db",
+        "username": "api_user",
+        "password": "secret123",
+        "scope": "res.partner:RWD,sale.order:RW,*:R"
     }
+    """
+    global connection_manager
+
+    # =========================================================================
+    # 1. PARSE & VALIDATE CREDENTIALS FROM HEADER
+    # =========================================================================
+
+    try:
+        creds = parse_auth_header(x_auth_credentials)
+        logger.debug(f"Parsed credentials for user: {creds['username']}")
+    except AuthenticationError as e:
+        logger.warning(f"Auth error: {str(e)}")
+        return {
+            "error": str(e),
+            "status": "auth_failed"
+        }
+
+    # =========================================================================
+    # 2. PARSE & VALIDATE SCOPE
+    # =========================================================================
+
+    try:
+        scope_validator = ScopeValidator(creds["scope"])
+        logger.debug(f"Scope validated for user: {creds['username']}")
+    except ScopeValidationError as e:
+        logger.warning(f"Scope error: {str(e)}")
+        return {
+            "error": f"Invalid scope: {str(e)}",
+            "status": "scope_invalid"
+        }
+
+    # =========================================================================
+    # 3. GET ODOO CONNECTION (FROM POOL OR CREATE NEW)
+    # =========================================================================
+
+    try:
+        uid, db, models_proxy = connection_manager.get_connection(
+            creds["url"],
+            creds["database"],
+            creds["username"],
+            creds["password"],
+            creds["scope"]
+        )
+        logger.debug(f"Got connection for {creds['username']} (UID: {uid})")
+    except OdooConnectionError as e:
+        logger.error(f"Connection error: {str(e)}")
+        return {
+            "error": str(e),
+            "status": "connection_failed"
+        }
+
+    # =========================================================================
+    # 4. CREATE ODOO CLIENT WITH SCOPE VALIDATION
+    # =========================================================================
+
+    client = OdooClient(
+        odoo_url=creds["url"],
+        odoo_db=creds["database"],
+        username=creds["username"],
+        password=creds["password"],
+        connection_manager=connection_manager,
+        scope_validator=scope_validator
+    )
+
+    # =========================================================================
+    # 5. PARSE & EXECUTE TOOL
+    # =========================================================================
+
+    tool_name = request.get("name")
+    arguments = request.get("arguments", {})
+
+    if not tool_name:
+        return {
+            "error": "Missing 'name' in request",
+            "status": "invalid_request"
+        }
+
+    if tool_name not in TOOLS_REGISTRY:
+        return {
+            "error": f"Tool '{tool_name}' not found. Available tools: {list(TOOLS_REGISTRY.keys())}",
+            "status": "tool_not_found"
+        }
+
+    try:
+        logger.debug(f"Executing tool '{tool_name}' for {creds['username']}")
+
+        # Call the tool function
+        tool_func = TOOLS_REGISTRY[tool_name]
+        result = await tool_func(client, **arguments)
+
+        logger.debug(f"Tool '{tool_name}' executed successfully")
+
+        # Stream the result back
+        def generate():
+            yield json.dumps({"result": result}).encode() + b"\n"
+
+        return StreamingResponse(generate(), media_type="application/json")
+
+    except PermissionError as e:
+        logger.warning(f"Permission denied for {creds['username']}: {str(e)}")
+        return {
+            "error": str(e),
+            "status": "permission_denied"
+        }
+    except OdooClientError as e:
+        logger.error(f"Odoo client error: {str(e)}")
+        return {
+            "error": str(e),
+            "status": "odoo_error"
+        }
+    except Exception as e:
+        logger.error(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
+        return {
+            "error": f"Tool execution failed: {str(e)}",
+            "status": "execution_error"
+        }
 
 # ============================================================================
 # ERROR HANDLERS
