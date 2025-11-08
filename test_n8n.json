@@ -1,0 +1,108 @@
+{
+  "name": "Python Odoo MCP - Test Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/tools/list",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        }
+      },
+      "name": "List MCP Tools",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [420, 300],
+      "credentials": {
+        "httpHeaderAuth": "n8nCredsHttpHeaderAuth"
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/tools/call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Credentials",
+              "value": "{{ Buffer.from(JSON.stringify({url: $json.odoo_url, database: $json.odoo_database, username: $json.odoo_username, password: $json.odoo_password, scope: 'res.partner:RWD,sale.order:RW,*:R'})).toString('base64') }}"
+            }
+          ]
+        },
+        "body": "{{ {name: 'search', arguments: {model: 'res.partner', limit: 10}} }}"
+      },
+      "name": "Search Partners",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [620, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:3000/tools/call",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Auth-Credentials",
+              "value": "{{ Buffer.from(JSON.stringify({url: $json.odoo_url, database: $json.odoo_database, username: $json.odoo_username, password: $json.odoo_password, scope: 'res.partner:RWD,sale.order:RW,*:R'})).toString('base64') }}"
+            }
+          ]
+        },
+        "body": "{{ {name: 'fields_get', arguments: {model: 'res.partner'}} }}"
+      },
+      "name": "Get Partner Fields",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [820, 300]
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "List MCP Tools",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List MCP Tools": {
+      "main": [
+        [
+          {
+            "node": "Search Partners",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Partners": {
+      "main": [
+        [
+          {
+            "node": "Get Partner Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "metadata": {
+    "description": "Example n8n workflow for testing Python Odoo MCP\n\nSetup:\n1. In n8n, create credentials for your Odoo instance (or use as variables)\n2. Replace odoo_url, odoo_database, odoo_username, odoo_password in HTTP nodes\n3. Set scope to match your permissions (example: 'res.partner:RWD,sale.order:RW,*:R')\n4. Run the workflow\n\nThe workflow:\n1. Lists available MCP tools\n2. Searches for partners with limit=10\n3. Gets field definitions for res.partner model"
+  }
+}
