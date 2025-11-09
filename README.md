@@ -32,19 +32,30 @@ docker-compose up --build
 
 ## Usage with n8n
 
-### 1. Set Up Odoo Credentials
+### 1. Generate API Key
 
-In n8n, prepare your Odoo credentials as a JSON object:
+First, POST your Odoo credentials to `/auth/generate` to get an encrypted API key:
 
-```json
-{
-  "url": "https://company.odoo.com",
-  "database": "company_db",
-  "username": "api_user",
-  "password": "secret123",
-  "scope": "res.partner:RWD,sale.order:RW,product.product:R,*:R"
-}
+```bash
+curl -X POST http://localhost:3000/auth/generate \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://company.odoo.com",
+    "database": "company_db",
+    "username": "api_user",
+    "password": "secret123",
+    "scope": "res.partner:RWD,sale.order:RW,product.product:R,*:R"
+  }'
+
+# Response:
+# {
+#   "api_key": "gAAAAABl...",
+#   "expires": null,
+#   "user": "api_user"
+# }
 ```
+
+In n8n, you can store this `api_key` in a variable for later use.
 
 ### 2. Create HTTP Request Node
 
@@ -53,7 +64,7 @@ In n8n, use an HTTP Request node with:
 - **Method:** POST
 - **URL:** `http://localhost:3000/tools/call` (or your Coolify URL)
 - **Headers:**
-  - `X-Auth-Credentials: {{ Buffer.from(JSON.stringify({...your_creds...})).toString('base64') }}`
+  - `X-API-Key: {{ $variables.api_key }}`  (use your stored API key)
 - **Body:**
   ```json
   {
@@ -150,6 +161,10 @@ Permissions:
 ## Environment Variables
 
 ```bash
+# Encryption key for API key generation (auto-generated if not set)
+# Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY=your_base64_fernet_key_here
+
 # Connection pool TTL (default: 60 minutes)
 CONNECTION_POOL_TTL_MINUTES=60
 
@@ -175,6 +190,44 @@ PORT=3000
 
 ## Testing
 
+### Unit and Integration Tests
+
+The project includes comprehensive unit and integration tests using pytest:
+
+```bash
+# Run all tests
+pytest tests/
+
+# Run with coverage report
+pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
+
+# Run specific test file
+pytest tests/unit/test_encryption.py -v
+
+# Run tests matching pattern
+pytest -k "scope_validator" -v
+
+# Run with markers
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests only
+pytest -m slow         # Slow/e2e tests
+```
+
+### Test Structure
+
+```
+tests/
+├── unit/                           # Unit tests (no external dependencies)
+│   ├── test_config.py             # Config management & encryption key validation
+│   ├── test_encryption.py         # Credential encryption/decryption
+│   └── test_scope_validator.py    # Scope parsing and permission checking
+├── integration/                    # Integration tests (with app instance)
+│   ├── test_auth_endpoints.py     # /auth/generate and /auth/validate
+│   ├── test_health.py             # Health check endpoints
+│   └── test_tools_endpoints.py    # /tools/list and /tools/call
+└── conftest.py                    # Shared pytest fixtures
+```
+
 ### Health Check
 
 ```bash
@@ -196,6 +249,17 @@ curl -X POST http://localhost:3000/tools/list
 ### Test in n8n
 
 Import `test_n8n.json` workflow for examples.
+
+### Coverage Goals
+
+Current coverage: 46% (61 tests passing)
+- **High coverage:** Authentication, encryption, scope validation (89%), connection pool management
+- **Low coverage:** Tool implementations, Odoo client methods (require live Odoo instance)
+
+To improve coverage:
+1. Run tests against real Odoo instance (see Phase 8 in development history)
+2. Mock Odoo responses in unit tests
+3. Use testcontainers for Odoo in CI/CD
 
 ## Features
 
