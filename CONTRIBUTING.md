@@ -249,6 +249,59 @@ def encrypt_credentials(self, credentials: Credentials) -> str:
 - Store `ENCRYPTION_KEY` as environment variable
 - Follow OWASP guidelines for authentication/encryption
 
+## Coverage Monitoring with Codecov
+
+We use [Codecov](https://codecov.io/) to track test coverage over time and monitor code quality.
+
+### Setting Up Codecov (Maintainers Only)
+
+1. **Sign up at Codecov:**
+   - Go to https://codecov.io/
+   - Sign in with GitHub account
+   - Grant access to `christopher-igweze/python-odoo-mcp` repository
+   - Codecov will automatically sync and start receiving coverage reports
+
+2. **Get Upload Token (Recommended):**
+   - Navigate to repository settings in Codecov dashboard
+   - Copy the "Repository Upload Token"
+   - Add to GitHub as a Secret:
+     1. Go to repository Settings → Secrets and variables → Actions
+     2. Click "New repository secret"
+     3. Name: `CODECOV_TOKEN`
+     4. Value: (paste token from Codecov)
+   - GitHub Actions will use this token to securely upload coverage
+
+3. **Verify Integration:**
+   - Push a commit to main or a feature branch
+   - GitHub Actions should run tests and upload coverage to Codecov
+   - Check Codecov dashboard to see coverage report
+   - PRs will show coverage impact comments
+
+### Understanding Coverage Reports
+
+**What coverage measures:**
+- **Line coverage:** % of source code lines executed during tests
+- **Branch coverage:** All if/else paths tested
+- **Files:** Which files have gaps and need more tests
+
+**Reading reports:**
+- Red/uncovered lines = not tested
+- Green/covered lines = tested during test runs
+- Trending graphs show if coverage is improving
+
+**Coverage impact on PRs:**
+- Shows lines added/removed/changed
+- Indicates if PR improves or decreases coverage
+- Comments on PR with summary
+
+### For Contributors
+
+When submitting PRs:
+1. Ensure new code has corresponding tests
+2. Aim for 80%+ coverage on files you modify
+3. Check local coverage: `pytest --cov=src --cov-report=html`
+4. Codecov will comment automatically if coverage drops
+
 ## Need Help?
 
 - Check existing issues and PRs

@@ -261,6 +261,51 @@ To improve coverage:
 2. Mock Odoo responses in unit tests
 3. Use testcontainers for Odoo in CI/CD
 
+### Coverage Monitoring with Codecov
+
+This project uses [Codecov](https://codecov.io/) for continuous coverage tracking and reporting.
+
+**Coverage Tracking:**
+- View detailed coverage dashboard: https://codecov.io/gh/christopher-igweze/python-odoo-mcp
+- Coverage reports generated automatically on every push via GitHub Actions
+- Pull requests show coverage impact (lines added/removed/changed)
+- Coverage history graphs track improvements over time
+
+**Current Status:**
+- Overall coverage: 46% (target: 75%+)
+- Authentication & encryption: 89% ✅
+- Scope validation: 89% ✅
+- Tools & Odoo client: 15-29% (improving with mocked tests)
+
+**Understanding Coverage Reports:**
+1. **Line Coverage** - Percentage of source code lines executed during tests
+2. **Branch Coverage** - All code paths (if/else) tested
+3. **Uncovered Lines** - Listed with file paths for targeting improvement
+4. **Trending** - See if coverage increases or decreases with each commit
+
+**Local Coverage Reports:**
+
+Generate and view HTML coverage reports locally:
+
+```bash
+# Run tests with coverage
+pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
+
+# View in browser
+open htmlcov/index.html  # macOS
+# or
+xdg-open htmlcov/index.html  # Linux
+```
+
+**For Contributors:**
+
+When implementing new features:
+1. Write tests alongside implementation
+2. Aim for 80%+ coverage on new code
+3. Run `pytest` to see coverage before pushing
+4. Codecov will comment on PRs showing impact
+5. Target overall coverage of 75%+
+
 ## Features
 
 ✅ **Multi-tenant** - Different users, different Odoo instances, same server
