@@ -1,5 +1,8 @@
 # Python Odoo MCP Server
 
+[![codecov](https://codecov.io/gh/christopher-igweze/python-odoo-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/christopher-igweze/python-odoo-mcp)
+[![Tests](https://github.com/christopher-igweze/python-odoo-mcp/workflows/Tests/badge.svg)](https://github.com/christopher-igweze/python-odoo-mcp/actions)
+
 Multi-tenant Odoo XML-RPC MCP server with scope-based access control, connection pooling, and HTTP Stream transport.
 
 **Repository:** https://github.com/christopher-igweze/python-odoo-mcp
