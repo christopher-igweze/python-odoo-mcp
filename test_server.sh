@@ -19,18 +19,11 @@ echo "Python Odoo MCP Server - Integration Tests"
 echo "=========================================="
 echo ""
 
-# Test credentials (base64 encoded JSON)
-# {"url": "https://demo.odoo.com", "database": "demo", "username": "admin", "password": "admin", "scope": "res.partner:RWD,sale.order:RW"}
-VALID_CREDS="eyJ1cmwiOiAiaHR0cHM6Ly9kZW1vLm9kb28uY29tIiwgImRhdGFiYXNlIjogImRlbW8iLCAidXNlcm5hbWUiOiAiYWRtaW4iLCAicGFzc3dvcmQiOiAiYWRtaW4iLCAic2NvcGUiOiAicmVzLnBhcnRuZXI6UldELHNhbGUub3JkZXI6UlcifQ=="
+# Test credentials for generating API keys
+CREDS_JSON='{"url":"https://demo.odoo.com","database":"demo","username":"admin","password":"admin","scope":"res.partner:RWD,sale.order:RW,*:R"}'
 
-# Invalid base64
-INVALID_BASE64="!@#$%^&*()"
-
-# Invalid JSON
-INVALID_JSON="aW52YWxpZCBqc29u"  # base64("invalid json")
-
-# Missing password field
-MISSING_FIELD="eyJ1cmwiOiAiaHR0cHM6Ly9kZW1vLm9kb28uY29tIiwgImRhdGFiYXNlIjogImRlbW8iLCAidXNlcm5hbWUiOiAiYWRtaW4ifQ=="
+# Invalid API key
+INVALID_API_KEY="invalid_key_!@#$%"
 
 function test_endpoint() {
     local name=$1
@@ -88,34 +81,37 @@ echo -e "${YELLOW}[ Test Suite 2: Tool Discovery ]${NC}"
 test_endpoint "List tools" "POST" "/tools/list" "" "" "200"
 
 # ============================================================================
-# TEST 3: Authentication errors
+# TEST 3: Authentication flows
 # ============================================================================
 echo ""
-echo -e "${YELLOW}[ Test Suite 3: Authentication Errors ]${NC}"
+echo -e "${YELLOW}[ Test Suite 3: Authentication Flows ]${NC}"
 
-test_endpoint "Missing header" "POST" "/tools/call" "" '{"name":"search","arguments":{}}' "200"
-test_endpoint "Invalid base64" "POST" "/tools/call" "X-Auth-Credentials: $INVALID_BASE64" '{"name":"search","arguments":{}}' "200"
-test_endpoint "Invalid JSON" "POST" "/tools/call" "X-Auth-Credentials: $INVALID_JSON" '{"name":"search","arguments":{}}' "200"
-test_endpoint "Missing field" "POST" "/tools/call" "X-Auth-Credentials: $MISSING_FIELD" '{"name":"search","arguments":{}}' "200"
+# Test generating API key
+test_endpoint "Generate API key" "POST" "/auth/generate" "Content-Type: application/json" "$CREDS_JSON" "200"
+
+# Test missing API key header
+test_endpoint "Missing X-API-Key header" "POST" "/tools/call" "" '{"name":"search","arguments":{}}' "200"
+
+# Test invalid API key
+test_endpoint "Invalid API key" "POST" "/tools/call" "X-API-Key: $INVALID_API_KEY" '{"name":"search","arguments":{}}' "200"
 
 # ============================================================================
-# TEST 4: Tool validation
+# TEST 4: Tool validation (requires valid API key)
 # ============================================================================
 echo ""
 echo -e "${YELLOW}[ Test Suite 4: Tool Validation ]${NC}"
 
-test_endpoint "Missing tool name" "POST" "/tools/call" "X-Auth-Credentials: $VALID_CREDS" '{"arguments":{}}' "200"
-test_endpoint "Unknown tool" "POST" "/tools/call" "X-Auth-Credentials: $VALID_CREDS" '{"name":"unknown_tool","arguments":{}}' "200"
+test_endpoint "Missing tool name" "POST" "/tools/call" "X-API-Key: $INVALID_API_KEY" '{"arguments":{}}' "200"
+test_endpoint "Unknown tool" "POST" "/tools/call" "X-API-Key: $INVALID_API_KEY" '{"name":"unknown_tool","arguments":{}}' "200"
 
 # ============================================================================
-# TEST 5: Scope parsing
+# TEST 5: API key validation endpoint
 # ============================================================================
 echo ""
-echo -e "${YELLOW}[ Test Suite 5: Scope Parsing ]${NC}"
+echo -e "${YELLOW}[ Test Suite 5: API Key Validation ]${NC}"
 
-# Test with empty scope (should fail)
-EMPTY_SCOPE="eyJ1cmwiOiAiaHR0cHM6Ly9kZW1vLm9kb28uY29tIiwgImRhdGFiYXNlIjogImRlbW8iLCAidXNlcm5hbWUiOiAiYWRtaW4iLCAicGFzc3dvcmQiOiAiYWRtaW4iLCAic2NvcGUiOiAiIn0="
-test_endpoint "Empty scope" "POST" "/tools/call" "X-Auth-Credentials: $EMPTY_SCOPE" '{"name":"search","arguments":{"model":"res.partner"}}' "200"
+# Test validating an invalid key
+test_endpoint "Validate invalid key" "POST" "/auth/validate" "Content-Type: application/json" '{"api_key":"'$INVALID_API_KEY'"}' "*"
 
 # ============================================================================
 # SUMMARY

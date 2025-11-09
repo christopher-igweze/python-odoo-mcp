@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from contextlib import asynccontextmanager
 
 from .config import config
+from .auth_manager import encryption_manager, Credentials, APIKeyResponse
 from .auth.header_parser import parse_auth_header, AuthenticationError
 from .auth.scope_validator import ScopeValidator, ScopeValidationError
 from .connection.pool import ConnectionPool
@@ -74,6 +75,88 @@ async def health():
         "version": "1.0.0",
         "pool": pool_stats
     }
+
+# ============================================================================
+# AUTHENTICATION ENDPOINTS
+# ============================================================================
+
+@app.post("/auth/generate", response_model=APIKeyResponse)
+async def generate_api_key(credentials: Credentials):
+    """Generate encrypted API key from credentials
+
+    This endpoint takes raw Odoo credentials and generates an encrypted
+    API key that can be used for subsequent /tools/call requests.
+
+    Args:
+        credentials: Odoo credentials (url, database, username, password, scope)
+
+    Returns:
+        APIKeyResponse with encrypted api_key and credential info (no password)
+    """
+    try:
+        # Encrypt the credentials
+        api_key = encryption_manager.encrypt_credentials(credentials)
+
+        # Get credential info without password
+        cred_info = encryption_manager.get_credential_info(api_key)
+
+        logger.info(f"✓ Generated API key for user: {credentials.username}")
+
+        return APIKeyResponse(
+            api_key=api_key,
+            credentials=cred_info
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to generate API key: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to generate API key: {str(e)}"
+        )
+
+
+@app.post("/auth/validate")
+async def validate_api_key(request: dict):
+    """Validate an API key and return credential info
+
+    Decrypts an API key to verify it's valid and returns the credential
+    info (without password) for debugging purposes.
+
+    Body:
+        {"api_key": "encrypted_api_key"}
+
+    Returns:
+        Credential info dictionary (no password)
+    """
+    api_key = request.get("api_key")
+
+    if not api_key:
+        raise HTTPException(
+            status_code=400,
+            detail="Missing api_key in request body"
+        )
+
+    try:
+        cred_info = encryption_manager.get_credential_info(api_key)
+        logger.info(f"✓ API key validated for user: {cred_info['username']}")
+
+        return {
+            "status": "valid",
+            "credentials": cred_info
+        }
+
+    except ValueError as e:
+        logger.warning(f"Invalid API key: {str(e)}")
+        raise HTTPException(
+            status_code=401,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Failed to validate API key: {str(e)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to validate API key: {str(e)}"
+        )
 
 @app.post("/tools/list")
 async def list_tools():
@@ -205,33 +288,35 @@ async def list_tools():
 @app.post("/tools/call")
 async def call_tool(
     request: dict,
-    x_auth_credentials: str = Header(None)
+    x_api_key: str = Header(None)
 ):
-    """MCP: Call a tool with multi-tenant authentication
+    """MCP: Call a tool with encrypted API key authentication
 
     Expects:
-    - Header: X-Auth-Credentials: base64(JSON)
+    - Header: X-API-Key: <encrypted_api_key>
     - Body: {"name": "tool_name", "arguments": {...}}
 
-    JSON format:
-    {
-        "url": "https://company.odoo.com",
-        "database": "company_db",
-        "username": "api_user",
-        "password": "secret123",
-        "scope": "res.partner:RWD,sale.order:RW,*:R"
-    }
+    To get an X-API-Key:
+    1. POST to /auth/generate with credentials
+    2. Use the returned api_key in the X-API-Key header
     """
     global connection_manager
 
     # =========================================================================
-    # 1. PARSE & VALIDATE CREDENTIALS FROM HEADER
+    # 1. PARSE & VALIDATE CREDENTIALS FROM API KEY
     # =========================================================================
 
+    if not x_api_key:
+        logger.warning("Missing X-API-Key header")
+        return {
+            "error": "Missing X-API-Key header",
+            "status": "auth_failed"
+        }
+
     try:
-        creds = parse_auth_header(x_auth_credentials)
-        logger.debug(f"Parsed credentials for user: {creds['username']}")
-    except AuthenticationError as e:
+        creds = encryption_manager.decrypt_credentials(x_api_key)
+        logger.debug(f"Decrypted credentials for user: {creds['username']}")
+    except ValueError as e:
         logger.warning(f"Auth error: {str(e)}")
         return {
             "error": str(e),
