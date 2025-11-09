@@ -1,12 +1,16 @@
 """Scope validation and permission checking"""
+
 import logging
-from typing import Dict, Set, List, Optional
+from typing import Dict, List, Optional, Set
 
 logger = logging.getLogger(__name__)
 
+
 class ScopeValidationError(Exception):
     """Raised when scope validation fails"""
+
     pass
+
 
 class ScopeValidator:
     """
@@ -123,7 +127,9 @@ class ScopeValidator:
         logger.debug(f"Parsed scope: {self.allowed_models}")
 
         if not self.allowed_models:
-            raise ScopeValidationError("Scope string resulted in no valid model permissions")
+            raise ScopeValidationError(
+                "Scope string resulted in no valid model permissions"
+            )
 
     def can_call(self, model: str, operation: str) -> bool:
         """

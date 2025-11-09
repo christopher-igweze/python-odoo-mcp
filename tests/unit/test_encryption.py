@@ -1,9 +1,11 @@
 """Unit tests for encryption module"""
-import pytest
+
 import json
 
-from src.auth_manager import EncryptionManager, Credentials
+import pytest
 from cryptography.fernet import Fernet
+
+from src.auth_manager import Credentials, EncryptionManager
 
 
 @pytest.mark.unit
@@ -27,7 +29,7 @@ class TestEncryptionManager:
             database="test_db",
             username="test_user",
             password="test_password",
-            scope="*:RWD"
+            scope="*:RWD",
         )
 
         encrypted = encryption_manager.encrypt_credentials(creds)
@@ -46,7 +48,7 @@ class TestEncryptionManager:
             database="test_db",
             username="test_user",
             password="test_password",
-            scope="*:RWD"
+            scope="*:RWD",
         )
 
         encrypted = encryption_manager.encrypt_credentials(original_creds)
@@ -70,7 +72,7 @@ class TestEncryptionManager:
             database="test_db",
             username="test_user",
             password="test_password",
-            scope="*:RWD"
+            scope="*:RWD",
         )
 
         encrypted = encryption_manager.encrypt_credentials(creds)
@@ -89,7 +91,7 @@ class TestEncryptionManager:
             database="db1",
             username="user1",
             password="pass123",
-            scope="res.partner:RWD"
+            scope="res.partner:RWD",
         )
 
         # Encrypt multiple times
@@ -112,7 +114,7 @@ class TestEncryptionManager:
             "*:R",
             "*:RWD",
             "res.partner:RWD",
-            "res.partner:RWD,sale.order:RW,*:R"
+            "res.partner:RWD,sale.order:RW,*:R",
         ]
 
         for scope in scopes:
@@ -121,7 +123,7 @@ class TestEncryptionManager:
                 database="test_db",
                 username="test_user",
                 password="test_password",
-                scope=scope
+                scope=scope,
             )
 
             encrypted = encryption_manager.encrypt_credentials(creds)

@@ -1,15 +1,19 @@
 """Odoo connection management with pool integration"""
+
 import logging
-from typing import Tuple, Dict, Any
+from typing import Any, Dict, Tuple
 from xmlrpc import client as xmlrpc_client
 
 from .pool import ConnectionPool
 
 logger = logging.getLogger(__name__)
 
+
 class OdooConnectionError(Exception):
     """Raised when connection fails"""
+
     pass
+
 
 class OdooConnectionManager:
     """
@@ -31,12 +35,7 @@ class OdooConnectionManager:
         self.pool = pool
 
     def get_connection(
-        self,
-        odoo_url: str,
-        odoo_db: str,
-        username: str,
-        password: str,
-        scope: str
+        self, odoo_url: str, odoo_db: str, username: str, password: str, scope: str
     ) -> Tuple[int, str, xmlrpc_client.ServerProxy]:
         """
         Get or create Odoo connection.
@@ -78,7 +77,9 @@ class OdooConnectionManager:
             uid = common.authenticate(odoo_db, username, password, {})
 
             if not uid:
-                raise OdooConnectionError("Authentication failed: Invalid username/password")
+                raise OdooConnectionError(
+                    "Authentication failed: Invalid username/password"
+                )
 
             # Create models proxy for operations
             models = xmlrpc_client.ServerProxy(f"{odoo_url}/xmlrpc/2/object")
@@ -91,7 +92,9 @@ class OdooConnectionManager:
             return uid, odoo_db, models
 
         except xmlrpc_client.Fault as e:
-            raise OdooConnectionError(f"Odoo error during authentication: {e.faultString}")
+            raise OdooConnectionError(
+                f"Odoo error during authentication: {e.faultString}"
+            )
         except Exception as e:
             raise OdooConnectionError(f"Failed to connect to Odoo: {str(e)}")
 

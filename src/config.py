@@ -1,13 +1,18 @@
 """Configuration management for MCP Server"""
+
 import os
 from typing import Optional
+
 from cryptography.fernet import Fernet
+
 
 class Config:
     """Application configuration from environment variables"""
 
     # Connection pool settings
-    CONNECTION_POOL_TTL_MINUTES: int = int(os.getenv("CONNECTION_POOL_TTL_MINUTES", "60"))
+    CONNECTION_POOL_TTL_MINUTES: int = int(
+        os.getenv("CONNECTION_POOL_TTL_MINUTES", "60")
+    )
 
     # Logging
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -27,12 +32,18 @@ class Config:
             # If env var is set, validate it's a proper Fernet key
             try:
                 # Fernet keys must be 32 url-safe base64-encoded bytes
-                key = encryption_key_env.encode() if isinstance(encryption_key_env, str) else encryption_key_env
+                key = (
+                    encryption_key_env.encode()
+                    if isinstance(encryption_key_env, str)
+                    else encryption_key_env
+                )
                 # Validate by attempting to create a Fernet instance
                 Fernet(key)
                 return key
             except Exception as e:
-                raise ValueError(f"Invalid ENCRYPTION_KEY: {str(e)}. Key must be a valid Fernet key generated with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
+                raise ValueError(
+                    f'Invalid ENCRYPTION_KEY: {str(e)}. Key must be a valid Fernet key generated with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"'
+                )
         else:
             # Generate a new key if not provided
             return Fernet.generate_key()
@@ -47,5 +58,6 @@ class Config:
 
         if cls.LOG_LEVEL not in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
             raise ValueError(f"Invalid LOG_LEVEL: {cls.LOG_LEVEL}")
+
 
 config = Config()

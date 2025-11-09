@@ -1,16 +1,18 @@
 """FastAPI MCP Server entry point"""
-import logging
+
 import json
-from fastapi import FastAPI, HTTPException, Header
-from fastapi.responses import JSONResponse, StreamingResponse
+import logging
 from contextlib import asynccontextmanager
 
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse, StreamingResponse
+
+from .auth.header_parser import AuthenticationError, parse_auth_header
+from .auth.scope_validator import ScopeValidationError, ScopeValidator
+from .auth_manager import APIKeyResponse, Credentials, encryption_manager
 from .config import config
-from .auth_manager import encryption_manager, Credentials, APIKeyResponse
-from .auth.header_parser import parse_auth_header, AuthenticationError
-from .auth.scope_validator import ScopeValidator, ScopeValidationError
+from .connection.manager import OdooConnectionError, OdooConnectionManager
 from .connection.pool import ConnectionPool
-from .connection.manager import OdooConnectionManager, OdooConnectionError
 from .odoo.client import OdooClient, OdooClientError
 from .tools.tools import TOOLS_REGISTRY
 
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 # Global instances
 connection_pool: ConnectionPool = None
 connection_manager: OdooConnectionManager = None
+
 
 # Lifecycle management
 @asynccontextmanager
@@ -41,17 +44,19 @@ async def lifespan(app: FastAPI):
 
     logger.info("Shutting down Python Odoo MCP Server")
 
+
 # Create FastAPI app
 app = FastAPI(
     title="Python Odoo MCP Server",
     description="Multi-tenant Odoo XML-RPC MCP with scope-based access control",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # ============================================================================
 # ENDPOINTS
 # ============================================================================
+
 
 @app.get("/")
 async def root():
@@ -60,8 +65,9 @@ async def root():
         "name": "Python Odoo MCP Server",
         "version": "1.0.0",
         "transport": "http_streamable",
-        "status": "running"
+        "status": "running",
     }
+
 
 @app.get("/health")
 async def health():
@@ -70,15 +76,13 @@ async def health():
 
     pool_stats = connection_manager.get_pool_stats() if connection_manager else {}
 
-    return {
-        "status": "healthy",
-        "version": "1.0.0",
-        "pool": pool_stats
-    }
+    return {"status": "healthy", "version": "1.0.0", "pool": pool_stats}
+
 
 # ============================================================================
 # AUTHENTICATION ENDPOINTS
 # ============================================================================
+
 
 @app.post("/auth/generate", response_model=APIKeyResponse)
 async def generate_api_key(credentials: Credentials):
@@ -102,16 +106,12 @@ async def generate_api_key(credentials: Credentials):
 
         logger.info(f"✓ Generated API key for user: {credentials.username}")
 
-        return APIKeyResponse(
-            api_key=api_key,
-            credentials=cred_info
-        )
+        return APIKeyResponse(api_key=api_key, credentials=cred_info)
 
     except Exception as e:
         logger.error(f"Failed to generate API key: {str(e)}")
         raise HTTPException(
-            status_code=400,
-            detail=f"Failed to generate API key: {str(e)}"
+            status_code=400, detail=f"Failed to generate API key: {str(e)}"
         )
 
 
@@ -131,32 +131,23 @@ async def validate_api_key(request: dict):
     api_key = request.get("api_key")
 
     if not api_key:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing api_key in request body"
-        )
+        raise HTTPException(status_code=400, detail="Missing api_key in request body")
 
     try:
         cred_info = encryption_manager.get_credential_info(api_key)
         logger.info(f"✓ API key validated for user: {cred_info['username']}")
 
-        return {
-            "status": "valid",
-            "credentials": cred_info
-        }
+        return {"status": "valid", "credentials": cred_info}
 
     except ValueError as e:
         logger.warning(f"Invalid API key: {str(e)}")
-        raise HTTPException(
-            status_code=401,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=401, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to validate API key: {str(e)}")
         raise HTTPException(
-            status_code=400,
-            detail=f"Failed to validate API key: {str(e)}"
+            status_code=400, detail=f"Failed to validate API key: {str(e)}"
         )
+
 
 @app.post("/tools/list")
 async def list_tools():
@@ -172,13 +163,28 @@ async def list_tools():
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "model": {"type": "string", "description": "Odoo model name (e.g., res.partner)"},
-                    "domain": {"type": "array", "description": "Search domain filter", "default": []},
-                    "limit": {"type": "integer", "description": "Max records to return", "default": 100},
-                    "offset": {"type": "integer", "description": "Records to skip", "default": 0}
+                    "model": {
+                        "type": "string",
+                        "description": "Odoo model name (e.g., res.partner)",
+                    },
+                    "domain": {
+                        "type": "array",
+                        "description": "Search domain filter",
+                        "default": [],
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max records to return",
+                        "default": 100,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Records to skip",
+                        "default": 0,
+                    },
                 },
-                "required": ["model"]
-            }
+                "required": ["model"],
+            },
         },
         {
             "name": "read",
@@ -188,10 +194,14 @@ async def list_tools():
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
                     "ids": {"type": "array", "description": "Record IDs to read"},
-                    "fields": {"type": "array", "description": "Fields to return", "default": []}
+                    "fields": {
+                        "type": "array",
+                        "description": "Fields to return",
+                        "default": [],
+                    },
                 },
-                "required": ["model", "ids"]
-            }
+                "required": ["model", "ids"],
+            },
         },
         {
             "name": "search_read",
@@ -200,13 +210,29 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "domain": {"type": "array", "description": "Search domain filter", "default": []},
-                    "fields": {"type": "array", "description": "Fields to return", "default": []},
-                    "limit": {"type": "integer", "description": "Max records to return", "default": 100},
-                    "offset": {"type": "integer", "description": "Records to skip", "default": 0}
+                    "domain": {
+                        "type": "array",
+                        "description": "Search domain filter",
+                        "default": [],
+                    },
+                    "fields": {
+                        "type": "array",
+                        "description": "Fields to return",
+                        "default": [],
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Max records to return",
+                        "default": 100,
+                    },
+                    "offset": {
+                        "type": "integer",
+                        "description": "Records to skip",
+                        "default": 0,
+                    },
                 },
-                "required": ["model"]
-            }
+                "required": ["model"],
+            },
         },
         {
             "name": "search_count",
@@ -215,10 +241,14 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "domain": {"type": "array", "description": "Search domain filter", "default": []}
+                    "domain": {
+                        "type": "array",
+                        "description": "Search domain filter",
+                        "default": [],
+                    },
                 },
-                "required": ["model"]
-            }
+                "required": ["model"],
+            },
         },
         {
             "name": "fields_get",
@@ -227,10 +257,14 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "fields": {"type": "array", "description": "Specific fields to describe", "default": []}
+                    "fields": {
+                        "type": "array",
+                        "description": "Specific fields to describe",
+                        "default": [],
+                    },
                 },
-                "required": ["model"]
-            }
+                "required": ["model"],
+            },
         },
         {
             "name": "default_get",
@@ -239,10 +273,14 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "fields": {"type": "array", "description": "Fields to get defaults for", "default": []}
+                    "fields": {
+                        "type": "array",
+                        "description": "Fields to get defaults for",
+                        "default": [],
+                    },
                 },
-                "required": ["model"]
-            }
+                "required": ["model"],
+            },
         },
         {
             "name": "create",
@@ -251,10 +289,13 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "values": {"type": "object", "description": "Field values for new record"}
+                    "values": {
+                        "type": "object",
+                        "description": "Field values for new record",
+                    },
                 },
-                "required": ["model", "values"]
-            }
+                "required": ["model", "values"],
+            },
         },
         {
             "name": "write",
@@ -264,10 +305,10 @@ async def list_tools():
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
                     "ids": {"type": "array", "description": "Record IDs to update"},
-                    "values": {"type": "object", "description": "Field values to set"}
+                    "values": {"type": "object", "description": "Field values to set"},
                 },
-                "required": ["model", "ids", "values"]
-            }
+                "required": ["model", "ids", "values"],
+            },
         },
         {
             "name": "unlink",
@@ -276,20 +317,18 @@ async def list_tools():
                 "type": "object",
                 "properties": {
                     "model": {"type": "string", "description": "Odoo model name"},
-                    "ids": {"type": "array", "description": "Record IDs to delete"}
+                    "ids": {"type": "array", "description": "Record IDs to delete"},
                 },
-                "required": ["model", "ids"]
-            }
-        }
+                "required": ["model", "ids"],
+            },
+        },
     ]
 
     return {"tools": tools}
 
+
 @app.post("/tools/call")
-async def call_tool(
-    request: dict,
-    x_api_key: str = Header(None)
-):
+async def call_tool(request: dict, x_api_key: str = Header(None)):
     """MCP: Call a tool with encrypted API key authentication
 
     Expects:
@@ -308,20 +347,14 @@ async def call_tool(
 
     if not x_api_key:
         logger.warning("Missing X-API-Key header")
-        return {
-            "error": "Missing X-API-Key header",
-            "status": "auth_failed"
-        }
+        return {"error": "Missing X-API-Key header", "status": "auth_failed"}
 
     try:
         creds = encryption_manager.decrypt_credentials(x_api_key)
         logger.debug(f"Decrypted credentials for user: {creds['username']}")
     except ValueError as e:
         logger.warning(f"Auth error: {str(e)}")
-        return {
-            "error": str(e),
-            "status": "auth_failed"
-        }
+        return {"error": str(e), "status": "auth_failed"}
 
     # =========================================================================
     # 2. PARSE & VALIDATE SCOPE
@@ -332,10 +365,7 @@ async def call_tool(
         logger.debug(f"Scope validated for user: {creds['username']}")
     except ScopeValidationError as e:
         logger.warning(f"Scope error: {str(e)}")
-        return {
-            "error": f"Invalid scope: {str(e)}",
-            "status": "scope_invalid"
-        }
+        return {"error": f"Invalid scope: {str(e)}", "status": "scope_invalid"}
 
     # =========================================================================
     # 3. GET ODOO CONNECTION (FROM POOL OR CREATE NEW)
@@ -347,15 +377,12 @@ async def call_tool(
             creds["database"],
             creds["username"],
             creds["password"],
-            creds["scope"]
+            creds["scope"],
         )
         logger.debug(f"Got connection for {creds['username']} (UID: {uid})")
     except OdooConnectionError as e:
         logger.error(f"Connection error: {str(e)}")
-        return {
-            "error": str(e),
-            "status": "connection_failed"
-        }
+        return {"error": str(e), "status": "connection_failed"}
 
     # =========================================================================
     # 4. CREATE ODOO CLIENT WITH SCOPE VALIDATION
@@ -367,7 +394,7 @@ async def call_tool(
         username=creds["username"],
         password=creds["password"],
         connection_manager=connection_manager,
-        scope_validator=scope_validator
+        scope_validator=scope_validator,
     )
 
     # =========================================================================
@@ -378,15 +405,12 @@ async def call_tool(
     arguments = request.get("arguments", {})
 
     if not tool_name:
-        return {
-            "error": "Missing 'name' in request",
-            "status": "invalid_request"
-        }
+        return {"error": "Missing 'name' in request", "status": "invalid_request"}
 
     if tool_name not in TOOLS_REGISTRY:
         return {
             "error": f"Tool '{tool_name}' not found. Available tools: {list(TOOLS_REGISTRY.keys())}",
-            "status": "tool_not_found"
+            "status": "tool_not_found",
         }
 
     try:
@@ -406,34 +430,28 @@ async def call_tool(
 
     except PermissionError as e:
         logger.warning(f"Permission denied for {creds['username']}: {str(e)}")
-        return {
-            "error": str(e),
-            "status": "permission_denied"
-        }
+        return {"error": str(e), "status": "permission_denied"}
     except OdooClientError as e:
         logger.error(f"Odoo client error: {str(e)}")
-        return {
-            "error": str(e),
-            "status": "odoo_error"
-        }
+        return {"error": str(e), "status": "odoo_error"}
     except Exception as e:
         logger.error(f"Unexpected error in tool execution: {str(e)}", exc_info=True)
         return {
             "error": f"Tool execution failed: {str(e)}",
-            "status": "execution_error"
+            "status": "execution_error",
         }
+
 
 # ============================================================================
 # ERROR HANDLERS
 # ============================================================================
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     """Handle HTTP exceptions"""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"error": exc.detail}
-    )
+    return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
 
 if __name__ == "__main__":
     import uvicorn
@@ -444,8 +462,5 @@ if __name__ == "__main__":
     logger.info(f"Starting server on {config.HOST}:{config.PORT}")
 
     uvicorn.run(
-        app,
-        host=config.HOST,
-        port=config.PORT,
-        log_level=config.LOG_LEVEL.lower()
+        app, host=config.HOST, port=config.PORT, log_level=config.LOG_LEVEL.lower()
     )

@@ -1,6 +1,8 @@
 """Integration tests for authentication endpoints"""
-import pytest
+
 import json
+
+import pytest
 
 from src.auth_manager import Credentials
 
@@ -16,7 +18,7 @@ class TestAuthGenerateEndpoint:
             "database": test_credentials.database,
             "username": test_credentials.username,
             "password": test_credentials.password,
-            "scope": test_credentials.scope
+            "scope": test_credentials.scope,
         }
 
         response = test_client.post("/auth/generate", json=payload)
@@ -35,7 +37,7 @@ class TestAuthGenerateEndpoint:
             "database": "test_db",
             # Missing username
             "password": "test_password",
-            "scope": "*:R"
+            "scope": "*:R",
         }
 
         response = test_client.post("/auth/generate", json=payload)
@@ -48,7 +50,7 @@ class TestAuthGenerateEndpoint:
             "database": test_credentials.database,
             "username": test_credentials.username,
             "password": test_credentials.password,
-            "scope": test_credentials.scope
+            "scope": test_credentials.scope,
         }
 
         response = test_client.post("/auth/generate", json=payload)
@@ -88,7 +90,9 @@ class TestAuthValidateEndpoint:
         response = test_client.post("/auth/validate", json=payload)
         assert response.status_code == 400
 
-    def test_validate_api_key_returns_credential_info(self, test_client, test_api_key, test_credentials):
+    def test_validate_api_key_returns_credential_info(
+        self, test_client, test_api_key, test_credentials
+    ):
         """Test that validation returns correct credential info"""
         payload = {"api_key": test_api_key}
 

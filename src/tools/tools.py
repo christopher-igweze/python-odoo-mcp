@@ -1,6 +1,7 @@
 """All MCP tools for Odoo operations"""
+
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Any, Dict, List, Optional
 
 from ..odoo.client import OdooClient
 
@@ -10,13 +11,14 @@ logger = logging.getLogger(__name__)
 # READ OPERATIONS (Require R permission)
 # ============================================================================
 
+
 async def search(
     client: OdooClient,
     model: str,
     domain: Optional[List] = None,
     limit: int = 100,
     offset: int = 0,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Search for records in a model.
@@ -34,23 +36,20 @@ async def search(
     try:
         domain = domain or []
         ids = await client.search(model, domain, limit=limit, offset=offset)
-        return {
-            "ids": ids,
-            "count": len(ids),
-            "model": model
-        }
+        return {"ids": ids, "count": len(ids), "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Search failed for {model}: {str(e)}")
         return {"error": f"Search failed: {str(e)}"}
 
+
 async def read(
     client: OdooClient,
     model: str,
     ids: List[int],
     fields: Optional[List[str]] = None,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Read specific records from a model.
@@ -67,16 +66,13 @@ async def read(
     try:
         fields = fields or []
         records = await client.read(model, ids, fields=fields)
-        return {
-            "records": records,
-            "count": len(records),
-            "model": model
-        }
+        return {"records": records, "count": len(records), "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Read failed for {model}: {str(e)}")
         return {"error": f"Read failed: {str(e)}"}
+
 
 async def search_read(
     client: OdooClient,
@@ -85,7 +81,7 @@ async def search_read(
     fields: Optional[List[str]] = None,
     limit: int = 100,
     offset: int = 0,
-    **kwargs
+    **kwargs,
 ) -> Dict[str, Any]:
     """
     Search and read records in one call.
@@ -105,28 +101,18 @@ async def search_read(
         domain = domain or []
         fields = fields or []
         records = await client.search_read(
-            model,
-            domain=domain,
-            fields=fields,
-            limit=limit,
-            offset=offset
+            model, domain=domain, fields=fields, limit=limit, offset=offset
         )
-        return {
-            "records": records,
-            "count": len(records),
-            "model": model
-        }
+        return {"records": records, "count": len(records), "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Search read failed for {model}: {str(e)}")
         return {"error": f"Search read failed: {str(e)}"}
 
+
 async def search_count(
-    client: OdooClient,
-    model: str,
-    domain: Optional[List] = None,
-    **kwargs
+    client: OdooClient, model: str, domain: Optional[List] = None, **kwargs
 ) -> Dict[str, Any]:
     """
     Count records matching domain in a model.
@@ -142,21 +128,16 @@ async def search_count(
     try:
         domain = domain or []
         count = await client.search_count(model, domain=domain)
-        return {
-            "count": count,
-            "model": model
-        }
+        return {"count": count, "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Search count failed for {model}: {str(e)}")
         return {"error": f"Search count failed: {str(e)}"}
 
+
 async def fields_get(
-    client: OdooClient,
-    model: str,
-    fields: Optional[List[str]] = None,
-    **kwargs
+    client: OdooClient, model: str, fields: Optional[List[str]] = None, **kwargs
 ) -> Dict[str, Any]:
     """
     Get field definitions for a model.
@@ -172,22 +153,16 @@ async def fields_get(
     try:
         fields = fields or []
         field_defs = await client.fields_get(model, fields=fields)
-        return {
-            "fields": field_defs,
-            "count": len(field_defs),
-            "model": model
-        }
+        return {"fields": field_defs, "count": len(field_defs), "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Fields get failed for {model}: {str(e)}")
         return {"error": f"Fields get failed: {str(e)}"}
 
+
 async def default_get(
-    client: OdooClient,
-    model: str,
-    fields: Optional[List[str]] = None,
-    **kwargs
+    client: OdooClient, model: str, fields: Optional[List[str]] = None, **kwargs
 ) -> Dict[str, Any]:
     """
     Get default values for model fields.
@@ -203,25 +178,21 @@ async def default_get(
     try:
         fields = fields or []
         defaults = await client.default_get(model, fields=fields)
-        return {
-            "defaults": defaults,
-            "model": model
-        }
+        return {"defaults": defaults, "model": model}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Default get failed for {model}: {str(e)}")
         return {"error": f"Default get failed: {str(e)}"}
 
+
 # ============================================================================
 # WRITE OPERATIONS (Require W permission)
 # ============================================================================
 
+
 async def create(
-    client: OdooClient,
-    model: str,
-    values: Dict[str, Any],
-    **kwargs
+    client: OdooClient, model: str, values: Dict[str, Any], **kwargs
 ) -> Dict[str, Any]:
     """
     Create a new record in a model.
@@ -236,23 +207,16 @@ async def create(
     """
     try:
         record_id = await client.create(model, values)
-        return {
-            "id": record_id,
-            "model": model,
-            "status": "created"
-        }
+        return {"id": record_id, "model": model, "status": "created"}
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Create failed for {model}: {str(e)}")
         return {"error": f"Create failed: {str(e)}"}
 
+
 async def write(
-    client: OdooClient,
-    model: str,
-    ids: List[int],
-    values: Dict[str, Any],
-    **kwargs
+    client: OdooClient, model: str, ids: List[int], values: Dict[str, Any], **kwargs
 ) -> Dict[str, Any]:
     """
     Update existing records in a model.
@@ -272,7 +236,7 @@ async def write(
             "success": result,
             "count": len(ids),
             "model": model,
-            "status": "updated"
+            "status": "updated",
         }
     except PermissionError as e:
         return {"error": str(e)}
@@ -280,15 +244,14 @@ async def write(
         logger.error(f"Write failed for {model}: {str(e)}")
         return {"error": f"Write failed: {str(e)}"}
 
+
 # ============================================================================
 # DELETE OPERATIONS (Require D permission)
 # ============================================================================
 
+
 async def unlink(
-    client: OdooClient,
-    model: str,
-    ids: List[int],
-    **kwargs
+    client: OdooClient, model: str, ids: List[int], **kwargs
 ) -> Dict[str, Any]:
     """
     Delete records from a model.
@@ -307,13 +270,14 @@ async def unlink(
             "success": result,
             "count": len(ids),
             "model": model,
-            "status": "deleted"
+            "status": "deleted",
         }
     except PermissionError as e:
         return {"error": str(e)}
     except Exception as e:
         logger.error(f"Unlink failed for {model}: {str(e)}")
         return {"error": f"Unlink failed: {str(e)}"}
+
 
 # ============================================================================
 # Tool registry mapping

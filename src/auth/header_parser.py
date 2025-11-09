@@ -1,14 +1,18 @@
 """Parse authentication credentials from request headers"""
+
 import base64
 import json
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
+
 class AuthenticationError(Exception):
     """Raised when authentication data is invalid"""
+
     pass
+
 
 def parse_auth_header(header_value: str) -> Dict[str, Any]:
     """
@@ -42,7 +46,7 @@ def parse_auth_header(header_value: str) -> Dict[str, Any]:
     try:
         # Decode base64
         decoded_bytes = base64.b64decode(header_value.strip())
-        decoded_str = decoded_bytes.decode('utf-8')
+        decoded_str = decoded_bytes.decode("utf-8")
 
         # Parse JSON
         creds = json.loads(decoded_str)
@@ -67,15 +71,21 @@ def parse_auth_header(header_value: str) -> Dict[str, Any]:
             "url": creds["url"].strip(),
             "database": creds["database"].strip(),
             "username": creds["username"].strip(),
-            "password": creds["password"],  # Don't strip password, spaces may be intentional
-            "scope": creds["scope"].strip()
+            "password": creds[
+                "password"
+            ],  # Don't strip password, spaces may be intentional
+            "scope": creds["scope"].strip(),
         }
 
     except base64.binascii.Error as e:
-        raise AuthenticationError(f"Invalid base64 encoding in X-Auth-Credentials: {str(e)}")
+        raise AuthenticationError(
+            f"Invalid base64 encoding in X-Auth-Credentials: {str(e)}"
+        )
     except json.JSONDecodeError as e:
         raise AuthenticationError(f"Invalid JSON in X-Auth-Credentials: {str(e)}")
     except UnicodeDecodeError as e:
-        raise AuthenticationError(f"Invalid UTF-8 encoding in X-Auth-Credentials: {str(e)}")
+        raise AuthenticationError(
+            f"Invalid UTF-8 encoding in X-Auth-Credentials: {str(e)}"
+        )
     except Exception as e:
         raise AuthenticationError(f"Failed to parse X-Auth-Credentials: {str(e)}")

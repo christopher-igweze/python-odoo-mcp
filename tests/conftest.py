@@ -1,12 +1,13 @@
 """Shared pytest fixtures and configuration"""
-import pytest
-from starlette.testclient import TestClient
-from httpx import AsyncClient
-from cryptography.fernet import Fernet
 
-from src.server import app
+import pytest
+from cryptography.fernet import Fernet
+from httpx import AsyncClient
+from starlette.testclient import TestClient
+
+from src.auth_manager import Credentials, encryption_manager
 from src.config import config
-from src.auth_manager import encryption_manager, Credentials
+from src.server import app
 
 
 @pytest.fixture(scope="session")
@@ -23,7 +24,7 @@ def test_credentials():
         database="demo",
         username="test_user",
         password="test_password",
-        scope="res.partner:RWD,sale.order:RW,*:R"
+        scope="res.partner:RWD,sale.order:RW,*:R",
     )
 
 
@@ -54,5 +55,5 @@ def mock_odoo_credentials():
         "database": "demo",
         "username": "admin",
         "password": "admin",
-        "scope": "*:RWD"
+        "scope": "*:RWD",
     }

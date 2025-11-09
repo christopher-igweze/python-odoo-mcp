@@ -1,4 +1,5 @@
 """Integration tests for tools endpoints"""
+
 import pytest
 
 
@@ -59,10 +60,7 @@ class TestCallToolEndpoint:
 
     def test_call_tool_missing_api_key(self, test_client):
         """Test tool call without API key"""
-        payload = {
-            "name": "search",
-            "arguments": {}
-        }
+        payload = {"name": "search", "arguments": {}}
 
         response = test_client.post("/tools/call", json=payload)
 
@@ -74,15 +72,10 @@ class TestCallToolEndpoint:
 
     def test_call_tool_invalid_api_key(self, test_client):
         """Test tool call with invalid API key"""
-        payload = {
-            "name": "search",
-            "arguments": {}
-        }
+        payload = {"name": "search", "arguments": {}}
 
         response = test_client.post(
-            "/tools/call",
-            json=payload,
-            headers={"X-API-Key": "invalid_key"}
+            "/tools/call", json=payload, headers={"X-API-Key": "invalid_key"}
         )
 
         assert response.status_code == 200
@@ -90,17 +83,15 @@ class TestCallToolEndpoint:
         assert "error" in data
         assert data["status"] == "auth_failed"
 
-    @pytest.mark.skip(reason="Requires full app lifespan with connection_manager initialization")
+    @pytest.mark.skip(
+        reason="Requires full app lifespan with connection_manager initialization"
+    )
     def test_call_tool_missing_tool_name(self, test_client, test_api_key):
         """Test tool call without tool name"""
-        payload = {
-            "arguments": {}
-        }
+        payload = {"arguments": {}}
 
         response = test_client.post(
-            "/tools/call",
-            json=payload,
-            headers={"X-API-Key": test_api_key}
+            "/tools/call", json=payload, headers={"X-API-Key": test_api_key}
         )
 
         assert response.status_code == 200
@@ -108,18 +99,15 @@ class TestCallToolEndpoint:
         assert "error" in data
         assert data["status"] == "invalid_request"
 
-    @pytest.mark.skip(reason="Requires full app lifespan with connection_manager initialization")
+    @pytest.mark.skip(
+        reason="Requires full app lifespan with connection_manager initialization"
+    )
     def test_call_tool_unknown_tool(self, test_client, test_api_key):
         """Test tool call with unknown tool"""
-        payload = {
-            "name": "unknown_tool",
-            "arguments": {}
-        }
+        payload = {"name": "unknown_tool", "arguments": {}}
 
         response = test_client.post(
-            "/tools/call",
-            json=payload,
-            headers={"X-API-Key": test_api_key}
+            "/tools/call", json=payload, headers={"X-API-Key": test_api_key}
         )
 
         assert response.status_code == 200
@@ -129,18 +117,11 @@ class TestCallToolEndpoint:
 
     def test_call_tool_requires_valid_api_key_format(self, test_client):
         """Test that valid API key format is required"""
-        payload = {
-            "name": "search",
-            "arguments": {
-                "model": "res.partner"
-            }
-        }
+        payload = {"name": "search", "arguments": {"model": "res.partner"}}
 
         # Invalid key format should be rejected
         response = test_client.post(
-            "/tools/call",
-            json=payload,
-            headers={"X-API-Key": "not-a-valid-fernet-key"}
+            "/tools/call", json=payload, headers={"X-API-Key": "not-a-valid-fernet-key"}
         )
 
         assert response.status_code == 200

@@ -1,7 +1,8 @@
 """Unit tests for scope validation module"""
+
 import pytest
 
-from src.auth.scope_validator import ScopeValidator, ScopeValidationError
+from src.auth.scope_validator import ScopeValidationError, ScopeValidator
 
 
 @pytest.mark.unit
@@ -24,7 +25,7 @@ class TestScopeValidatorParsing:
         assert validator.allowed_models == {
             "res.partner": {"R", "W", "D"},
             "sale.order": {"R", "W"},
-            "product.product": {"R"}
+            "product.product": {"R"},
         }
 
     def test_parse_wildcard_all_permissions(self):
@@ -40,10 +41,7 @@ class TestScopeValidatorParsing:
     def test_parse_mixed_specific_and_wildcard(self):
         """Test parsing specific models and wildcard together"""
         validator = ScopeValidator("res.partner:RWD,*:R")
-        assert validator.allowed_models == {
-            "res.partner": {"R", "W", "D"},
-            "*": {"R"}
-        }
+        assert validator.allowed_models == {"res.partner": {"R", "W", "D"}, "*": {"R"}}
 
     def test_parse_explicit_denial(self):
         """Test parsing explicit denial (empty permissions)"""
@@ -82,8 +80,8 @@ class TestScopeValidatorPermissionChecking:
         validator = ScopeValidator("res.partner:RWD")
 
         assert validator.can_call("res.partner", "search") is True  # R
-        assert validator.can_call("res.partner", "read") is True    # R
-        assert validator.can_call("res.partner", "write") is True   # W
+        assert validator.can_call("res.partner", "read") is True  # R
+        assert validator.can_call("res.partner", "write") is True  # W
         assert validator.can_call("res.partner", "create") is True  # W
         assert validator.can_call("res.partner", "unlink") is True  # D
 
@@ -171,8 +169,12 @@ class TestScopeValidatorAccessibleModels:
 
         assert validator.get_model_permissions("res.partner") == {"R", "W", "D"}
         assert validator.get_model_permissions("sale.order") == {"R", "W"}
-        assert validator.get_model_permissions("random.model") == {"R"}  # Falls back to wildcard
-        assert validator.get_model_permissions("nonexistent") == {"R"}   # Falls back to wildcard
+        assert validator.get_model_permissions("random.model") == {
+            "R"
+        }  # Falls back to wildcard
+        assert validator.get_model_permissions("nonexistent") == {
+            "R"
+        }  # Falls back to wildcard
 
     def test_get_model_permissions_no_access(self):
         """Test retrieving permissions when no wildcard"""

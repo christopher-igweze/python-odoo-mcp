@@ -1,9 +1,12 @@
 """Authentication and encryption module for API keys"""
+
 import json
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
 from cryptography.fernet import Fernet, InvalidToken
 from pydantic import BaseModel, Field
+
 from src.config import config
 
 logger = logging.getLogger(__name__)
@@ -11,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Credentials(BaseModel):
     """Odoo credentials model"""
+
     url: str = Field(..., description="Odoo instance URL")
     database: str = Field(..., description="Odoo database name")
     username: str = Field(..., description="Odoo username")
@@ -20,8 +24,11 @@ class Credentials(BaseModel):
 
 class APIKeyResponse(BaseModel):
     """API key response model"""
+
     api_key: str = Field(..., description="Encrypted API key for future requests")
-    credentials: Dict[str, Any] = Field(..., description="Decrypted credential info (password excluded)")
+    credentials: Dict[str, Any] = Field(
+        ..., description="Decrypted credential info (password excluded)"
+    )
 
 
 class EncryptionManager:
@@ -51,13 +58,15 @@ class EncryptionManager:
         """
         try:
             # Convert credentials to JSON
-            creds_json = json.dumps({
-                "url": credentials.url,
-                "database": credentials.database,
-                "username": credentials.username,
-                "password": credentials.password,
-                "scope": credentials.scope,
-            })
+            creds_json = json.dumps(
+                {
+                    "url": credentials.url,
+                    "database": credentials.database,
+                    "username": credentials.username,
+                    "password": credentials.password,
+                    "scope": credentials.scope,
+                }
+            )
 
             # Encrypt the JSON
             encrypted = self.cipher.encrypt(creds_json.encode())
@@ -88,7 +97,9 @@ class EncryptionManager:
             decrypted = self.cipher.decrypt(api_key.encode())
             credentials = json.loads(decrypted.decode())
 
-            logger.debug(f"✓ Credentials decrypted for user: {credentials.get('username', 'unknown')}")
+            logger.debug(
+                f"✓ Credentials decrypted for user: {credentials.get('username', 'unknown')}"
+            )
             return credentials
 
         except InvalidToken:

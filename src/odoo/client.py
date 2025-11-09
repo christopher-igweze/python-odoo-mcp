@@ -1,16 +1,20 @@
 """Odoo XML-RPC client with scope validation"""
+
 import logging
-from typing import Any, List, Dict, Optional
+from typing import Any, Dict, List, Optional
 from xmlrpc import client as xmlrpc_client
 
 from ..auth.scope_validator import ScopeValidator
-from ..connection.manager import OdooConnectionManager, OdooConnectionError
+from ..connection.manager import OdooConnectionError, OdooConnectionManager
 
 logger = logging.getLogger(__name__)
 
+
 class OdooClientError(Exception):
     """Raised when Odoo operation fails"""
+
     pass
+
 
 class OdooClient:
     """
@@ -27,7 +31,7 @@ class OdooClient:
         username: str,
         password: str,
         connection_manager: OdooConnectionManager,
-        scope_validator: ScopeValidator
+        scope_validator: ScopeValidator,
     ):
         """
         Initialize Odoo client.
@@ -63,7 +67,7 @@ class OdooClient:
                 self.odoo_db,
                 self.username,
                 self.password,
-                self.scope_validator.scope_string
+                self.scope_validator.scope_string,
             )
             return uid, db, models
         except OdooConnectionError as e:
@@ -74,7 +78,7 @@ class OdooClient:
         model: str,
         method: str,
         args: Optional[List[Any]] = None,
-        kwargs: Optional[Dict[str, Any]] = None
+        kwargs: Optional[Dict[str, Any]] = None,
     ) -> Any:
         """
         Execute Odoo RPC method with scope validation.
@@ -116,7 +120,9 @@ class OdooClient:
         try:
             logger.debug(f"Executing {model}.{method} for {self.username}")
 
-            result = models.execute_kw(db, uid, self.password, model, method, args, kwargs)
+            result = models.execute_kw(
+                db, uid, self.password, model, method, args, kwargs
+            )
 
             logger.debug(f"Successfully executed {model}.{method}")
             return result
@@ -137,7 +143,7 @@ class OdooClient:
         model: str,
         domain: Optional[List] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> List[int]:
         """
         Search for records.
@@ -153,17 +159,11 @@ class OdooClient:
         """
         domain = domain or []
         return await self.execute_kw(
-            model,
-            "search",
-            [domain],
-            {"limit": limit, "offset": offset}
+            model, "search", [domain], {"limit": limit, "offset": offset}
         )
 
     async def read(
-        self,
-        model: str,
-        ids: List[int],
-        fields: Optional[List[str]] = None
+        self, model: str, ids: List[int], fields: Optional[List[str]] = None
     ) -> List[Dict[str, Any]]:
         """
         Read records.
@@ -186,7 +186,7 @@ class OdooClient:
         domain: Optional[List] = None,
         fields: Optional[List[str]] = None,
         limit: int = 100,
-        offset: int = 0
+        offset: int = 0,
     ) -> List[Dict[str, Any]]:
         """
         Search and read in one call.
@@ -207,14 +207,10 @@ class OdooClient:
             model,
             "search_read",
             [domain],
-            {"fields": fields, "limit": limit, "offset": offset}
+            {"fields": fields, "limit": limit, "offset": offset},
         )
 
-    async def search_count(
-        self,
-        model: str,
-        domain: Optional[List] = None
-    ) -> int:
+    async def search_count(self, model: str, domain: Optional[List] = None) -> int:
         """
         Count matching records.
 
@@ -229,9 +225,7 @@ class OdooClient:
         return await self.execute_kw(model, "search_count", [domain])
 
     async def fields_get(
-        self,
-        model: str,
-        fields: Optional[List[str]] = None
+        self, model: str, fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Get field definitions.
@@ -248,9 +242,7 @@ class OdooClient:
         return await self.execute_kw(model, "fields_get", [fields], kwargs)
 
     async def default_get(
-        self,
-        model: str,
-        fields: Optional[List[str]] = None
+        self, model: str, fields: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         """
         Get default values for fields.

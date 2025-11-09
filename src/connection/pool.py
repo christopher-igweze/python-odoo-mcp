@@ -1,12 +1,14 @@
 """Connection pooling with scope-aware caching"""
+
 import hashlib
 import logging
 import threading
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Any
+from typing import Any, Dict, Optional
 from xmlrpc import client as xmlrpc_client
 
 logger = logging.getLogger(__name__)
+
 
 class ConnectionPool:
     """
@@ -75,7 +77,9 @@ class ConnectionPool:
                 del self.connections[key]
                 return None
 
-            logger.debug(f"Reusing cached connection for {username} (expires in {(cached['expires_at'] - datetime.now()).seconds}s)")
+            logger.debug(
+                f"Reusing cached connection for {username} (expires in {(cached['expires_at'] - datetime.now()).seconds}s)"
+            )
             return cached
 
     def set(
@@ -85,7 +89,7 @@ class ConnectionPool:
         scope: str,
         uid: int,
         db: str,
-        models_proxy: xmlrpc_client.ServerProxy
+        models_proxy: xmlrpc_client.ServerProxy,
     ) -> None:
         """
         Store connection in pool.
@@ -107,10 +111,12 @@ class ConnectionPool:
                 "models_proxy": models_proxy,
                 "scope": scope,
                 "created_at": datetime.now(),
-                "expires_at": datetime.now() + self.max_age
+                "expires_at": datetime.now() + self.max_age,
             }
 
-            logger.debug(f"Stored connection in pool for {username} (TTL: {self.max_age.total_seconds()}s)")
+            logger.debug(
+                f"Stored connection in pool for {username} (TTL: {self.max_age.total_seconds()}s)"
+            )
 
     def invalidate(self, odoo_url: str, username: str, scope: str) -> None:
         """
@@ -150,5 +156,5 @@ class ConnectionPool:
                 "total_connections": len(self.connections),
                 "expired_connections": expired_count,
                 "active_connections": len(self.connections) - expired_count,
-                "ttl_minutes": int(self.max_age.total_seconds() / 60)
+                "ttl_minutes": int(self.max_age.total_seconds() / 60),
             }
