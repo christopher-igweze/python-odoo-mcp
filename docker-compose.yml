@@ -8,6 +8,7 @@ services:
       - "3000:3000"
     environment:
       - PYTHONUNBUFFERED=1
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - CONNECTION_POOL_TTL_MINUTES=${CONNECTION_POOL_TTL_MINUTES:-60}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     restart: unless-stopped

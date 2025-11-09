@@ -12,5 +12,5 @@ COPY . .
 # Expose MCP port
 EXPOSE 3000
 
-# Use -u flag to disable Python buffering for better logging
-CMD ["python", "-u", "src/server.py"]
+# Use uvicorn directly - handles relative imports properly
+CMD ["uvicorn", "src.server:app", "--host", "0.0.0.0", "--port", "3000"]
