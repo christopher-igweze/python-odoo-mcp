@@ -1,5 +1,6 @@
 """Unit tests for configuration module"""
 
+import os
 import pytest
 from cryptography.fernet import Fernet
 
@@ -86,3 +87,55 @@ class TestConfigDefaults:
 
         # Default should be 60 minutes
         assert config.CONNECTION_POOL_TTL_MINUTES >= 1
+
+
+@pytest.mark.unit
+class TestConfigValidationErrors:
+    """Test configuration validation errors"""
+
+    def test_config_validate_with_invalid_log_level(self, monkeypatch):
+        """Test config validation fails with invalid LOG_LEVEL"""
+        # Create a Config instance and manually set invalid log level
+        monkeypatch.setenv("LOG_LEVEL", "INVALID")
+
+        # Re-import to get fresh config
+        import importlib
+        import src.config
+        importlib.reload(src.config)
+
+        from src.config import config
+
+        # Validation should fail
+        with pytest.raises(ValueError):
+            config.validate()
+
+    def test_config_validate_with_negative_ttl(self, monkeypatch):
+        """Test config validation fails with negative TTL"""
+        # Set negative TTL
+        monkeypatch.setenv("CONNECTION_POOL_TTL_MINUTES", "-1")
+
+        # Re-import to get fresh config
+        import importlib
+        import src.config
+        importlib.reload(src.config)
+
+        from src.config import config
+
+        # Validation should fail
+        with pytest.raises(ValueError):
+            config.validate()
+
+    def test_config_validate_with_zero_ttl(self, monkeypatch):
+        """Test config validation fails with zero TTL"""
+        monkeypatch.setenv("CONNECTION_POOL_TTL_MINUTES", "0")
+
+        # Re-import to get fresh config
+        import importlib
+        import src.config
+        importlib.reload(src.config)
+
+        from src.config import config
+
+        # Validation should fail
+        with pytest.raises(ValueError):
+            config.validate()

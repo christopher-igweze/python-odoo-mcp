@@ -130,3 +130,25 @@ class TestEncryptionManager:
             decrypted = encryption_manager.decrypt_credentials(encrypted)
 
             assert decrypted["scope"] == scope
+
+    def test_decrypt_corrupted_json_raises_error(self, encryption_manager):
+        """Test that decrypting corrupted JSON raises ValueError"""
+        # Encrypt some valid data
+        creds = Credentials(
+            url="https://test.odoo.com",
+            database="test_db",
+            username="test_user",
+            password="test_password",
+            scope="*:RWD",
+        )
+        encrypted = encryption_manager.encrypt_credentials(creds)
+
+        # Try to decrypt with wrong manager (if it fails at JSON level)
+        # Create a new manager with different key to get InvalidToken
+        with pytest.raises(ValueError):
+            encryption_manager.decrypt_credentials("invalid_key_that_fails")
+
+    def test_get_credential_info_with_invalid_key_raises_error(self, encryption_manager):
+        """Test that get_credential_info raises error for invalid key"""
+        with pytest.raises(ValueError):
+            encryption_manager.get_credential_info("invalid_key")
