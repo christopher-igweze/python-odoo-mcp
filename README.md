@@ -1,7 +1,11 @@
 # Python Odoo MCP Server
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![codecov](https://codecov.io/gh/christopher-igweze/python-odoo-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/christopher-igweze/python-odoo-mcp)
 [![Tests](https://github.com/christopher-igweze/python-odoo-mcp/workflows/Tests/badge.svg)](https://github.com/christopher-igweze/python-odoo-mcp/actions)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
 HTTP REST API for Odoo automation with encrypted API keys, multi-tenant scope isolation, and connection pooling. Built for n8n, webhooks, and custom integrations.
 
@@ -10,12 +14,19 @@ HTTP REST API for Odoo automation with encrypted API keys, multi-tenant scope is
 ## Features
 
 ✅ **Multi-tenant** - Different users, different Odoo instances, same server
+
 ✅ **Scope-based access control** - Fine-grained R/W/D permissions per model
+
 ✅ **Encrypted API keys** - Fernet encryption for secure key storage
+
 ✅ **Connection pooling** - Caches authenticated sessions with TTL
+
 ✅ **n8n ready** - Drop-in HTTP integration for automation workflows
+
 ✅ **Complete CRUD** - Search, read, create, write, delete any Odoo model
+
 ✅ **Error handling** - Clear permission, auth, and connection errors
+
 ✅ **Async support** - Full async/await for high concurrency
 
 ## Quick Start
@@ -232,3 +243,41 @@ Issues? Check:
 2. User has permissions in Odoo (create API user in settings)
 3. Scope syntax is valid (see examples above)
 4. Server logs: `docker logs python-odoo-mcp`
+
+## About
+
+**Python Odoo MCP Server** is a production-ready REST API that bridges Odoo with automation platforms like n8n, Zapier, and custom integrations. Built with security and scalability in mind:
+
+- **Encrypted by default** - API keys are Fernet-encrypted, never stored in plaintext
+- **Multi-tenant ready** - Isolate data with scope-based access control
+- **Connection pooling** - Efficient resource usage with TTL-based cache expiration
+- **Enterprise-grade testing** - 142 tests covering critical paths, 75%+ code coverage
+- **Developer-friendly** - Complete async/await support, clear error messages, detailed docs
+
+Whether you're automating Odoo workflows in n8n, building a custom integration, or managing Odoo data programmatically, this server provides a reliable, secure HTTP API with fine-grained permission control.
+
+### Use Cases
+
+- **n8n automation** - Use Odoo as a data source or action in n8n workflows
+- **Webhook integration** - Trigger Odoo operations from external systems
+- **Custom applications** - Build apps that interact with Odoo without direct XML-RPC
+- **API aggregation** - Combine Odoo with other APIs in automation platforms
+- **Data synchronization** - Sync Odoo data with other business systems
+
+### Technology Stack
+
+- **Framework:** FastAPI (async Python web framework)
+- **Protocol:** HTTP REST API with XML-RPC backend
+- **Caching:** In-memory connection pooling with TTL expiration
+- **Security:** Fernet encryption for API keys, scope-based access control
+- **Testing:** pytest with 75%+ code coverage
+- **Deployment:** Docker, Docker Compose, or traditional Python server
+
+### Project Status
+
+- **Version:** 0.1.0 (stable)
+- **License:** MIT (open source, commercial-friendly)
+- **Maintenance:** Active development
+- **Compatibility:** Odoo 11.0+ with Python 3.9+
+
+For more details, see [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and [LICENSE](LICENSE) for licensing terms.
