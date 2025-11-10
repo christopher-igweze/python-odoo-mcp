@@ -312,12 +312,19 @@ When implementing new features:
 ## Features
 
 ✅ **Multi-tenant** - Different users, different Odoo instances, same server
+
 ✅ **Scope-based access control** - Fine-grained R/W/D permissions per model
+
 ✅ **Connection pooling** - Caches authenticated sessions, scope-aware
+
 ✅ **HTTP Stream MCP** - Works with n8n's official MCP node
+
 ✅ **Stateless** - Each request is self-contained
+
 ✅ **Error handling** - Clear permission errors, auth errors, connection errors
+
 ✅ **Thread-safe** - RLock for pool access
+
 ✅ **Async** - Full async/await support
 
 ## Error Handling
