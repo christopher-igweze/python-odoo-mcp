@@ -251,3 +251,105 @@ class TestToolErrorHandling:
         # Assert
         assert "error" in result
         assert "Read not allowed" in result["error"]
+
+    async def test_create_handles_odoo_client_error(self, mock_client):
+        """Test create handles OdooClientError"""
+        # Arrange
+        mock_client.create = AsyncMock(
+            side_effect=OdooClientError("Creation failed")
+        )
+
+        # Act
+        result = await create(
+            client=mock_client, model="res.partner", values={"name": "Test"}
+        )
+
+        # Assert
+        assert "error" in result
+        assert "Creation failed" in result["error"]
+
+    async def test_write_handles_permission_error(self, mock_client):
+        """Test write handles PermissionError"""
+        # Arrange
+        mock_client.write = AsyncMock(
+            side_effect=PermissionError("Write not allowed")
+        )
+
+        # Act
+        result = await write(
+            client=mock_client, model="res.partner", ids=[1], values={"name": "Updated"}
+        )
+
+        # Assert
+        assert "error" in result
+        assert "Write not allowed" in result["error"]
+
+    async def test_unlink_handles_odoo_client_error(self, mock_client):
+        """Test unlink handles OdooClientError"""
+        # Arrange
+        mock_client.unlink = AsyncMock(
+            side_effect=OdooClientError("Deletion failed")
+        )
+
+        # Act
+        result = await unlink(client=mock_client, model="res.partner", ids=[1])
+
+        # Assert
+        assert "error" in result
+        assert "Deletion failed" in result["error"]
+
+    async def test_fields_get_handles_error(self, mock_client):
+        """Test fields_get handles errors"""
+        # Arrange
+        mock_client.fields_get = AsyncMock(
+            side_effect=OdooClientError("Schema fetch failed")
+        )
+
+        # Act
+        result = await fields_get(client=mock_client, model="res.partner")
+
+        # Assert
+        assert "error" in result
+        assert "Schema fetch failed" in result["error"]
+
+    async def test_search_read_handles_error(self, mock_client):
+        """Test search_read handles errors"""
+        # Arrange
+        mock_client.search_read = AsyncMock(
+            side_effect=PermissionError("Search failed")
+        )
+
+        # Act
+        result = await search_read(client=mock_client, model="res.partner")
+
+        # Assert
+        assert "error" in result
+        assert "Search failed" in result["error"]
+
+    async def test_search_count_handles_error(self, mock_client):
+        """Test search_count handles errors"""
+        # Arrange
+        mock_client.search_count = AsyncMock(
+            side_effect=OdooClientError("Count failed")
+        )
+
+        # Act
+        result = await search_count(client=mock_client, model="res.partner")
+
+        # Assert
+        assert "error" in result
+        assert "Count failed" in result["error"]
+
+    async def test_default_get_handles_error(self, mock_client):
+        """Test default_get handles errors"""
+        # Arrange
+        mock_client.default_get = AsyncMock(
+            side_effect=PermissionError("Default get failed")
+        )
+
+        # Act
+        result = await default_get(client=mock_client, model="res.partner")
+
+        # Assert
+        assert "error" in result
+        assert "Default get failed" in result["error"]
