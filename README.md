@@ -194,7 +194,7 @@ PORT=3000
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 - Running tests with pytest
-- Test coverage information
+- Test coverage information (75.37% achieved)
 - Development workflow and micro-commits
 
 ## Error Handling
