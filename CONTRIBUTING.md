@@ -1,312 +1,376 @@
-# Contributing to Python Odoo MCP
+# Contributing to Python Odoo MCP Server
 
-Thank you for contributing! This document outlines our development workflow and testing requirements.
+Thank you for your interest in contributing! This document covers development setup, testing, and our contribution workflow.
 
-## Development Workflow
+## Development Setup
 
-We follow a **micro-commit philosophy** with atomic, focused changes:
-
-### 1. Micro-Commits
-
-Each commit should be a single, focused change that can be understood in isolation.
-
-**Format:** Use glassbear emoji + conventional commit style
+### Local Environment
 
 ```bash
-# Examples
-git commit -m "✨ feat(auth): add encrypted API key generation"
-git commit -m "🐛 fix(scope): handle wildcard permission override"
-git commit -m "🧪 test(encryption): add credential roundtrip tests"
-git commit -m "📝 docs(readme): update n8n usage section"
+# Clone and install
+git clone https://github.com/christopher-igweze/python-odoo-mcp.git
+cd python-odoo-mcp
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
-**Emoji Reference:**
-- ✨ `feat` - New feature
-- 🐛 `fix` - Bug fix
-- 🧪 `test` - Test additions/updates
-- 📝 `docs` - Documentation
-- 🔧 `chore` - Build, config, dependencies
-- ♻️ `refactor` - Code restructuring
-- 🎨 `style` - Code formatting
-- 🔒 `security` - Security improvements
-
-### 2. Branch Strategy
-
-- Create feature branches from `main`: `feature/your-feature-name`
-- Make micro-commits to your feature branch
-- Push regularly (every 3-5 commits or hourly)
-- Create a pull request when complete
-- Get explicit approval before merging to main
-
-### 3. Testing Requirements
-
-All code changes must include tests. We enforce:
-
-- **Coverage threshold:** 75% (currently working toward this)
-- **Test organization:**
-  - Unit tests in `tests/unit/`
-  - Integration tests in `tests/integration/`
-  - E2E tests in `tests/e2e/` (for live deployments)
-
-### 4. Running Tests Locally
-
-Before pushing, ensure all tests pass:
+### Run Server Locally
 
 ```bash
-# Install development dependencies
-pip install -r requirements.txt
+python -m src.server
+# Server starts on http://localhost:3000
+```
 
+### Docker Setup
+
+```bash
+docker-compose up --build
+# Server starts on http://localhost:3000
+```
+
+## Testing
+
+### Running Tests
+
+The project includes comprehensive unit and integration tests using pytest:
+
+```bash
 # Run all tests
 pytest tests/
 
-# Run with coverage
+# Run with coverage report
 pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
 
-# Run specific tests
+# Run specific test file
 pytest tests/unit/test_encryption.py -v
+
+# Run tests matching pattern
 pytest -k "scope_validator" -v
 
-# Run by marker
-pytest -m unit           # Unit tests only
-pytest -m integration    # Integration tests only
+# Run with markers
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests only
+pytest -m slow         # Slow/e2e tests
 ```
 
-## Test Structure
+### Test Structure
 
-### Unit Tests (`tests/unit/`)
-
-Test individual components in isolation, no external dependencies.
-
-**When to write:**
-- Configuration management
-- Encryption/decryption logic
-- Scope parsing and validation
-- Core business logic
-
-**Example:**
-
-```python
-import pytest
-from src.auth.scope_validator import ScopeValidator
-
-class TestScopeValidator:
-    def test_parse_single_model_with_permissions(self):
-        """Test parsing single model scope"""
-        validator = ScopeValidator("res.partner:RWD")
-        assert validator.can_call("res.partner", "search")
-        assert validator.can_call("res.partner", "create")
-        assert validator.can_call("res.partner", "unlink")
-
-    def test_parse_invalid_scope_raises_error(self):
-        """Test invalid scope syntax raises error"""
-        with pytest.raises(ScopeValidationError):
-            ScopeValidator("invalid_scope")
+```
+tests/
+├── unit/                           # Unit tests (no external dependencies)
+│   ├── test_config.py             # Config management & encryption key validation
+│   ├── test_encryption.py         # Credential encryption/decryption
+│   ├── test_scope_validator.py    # Scope parsing and permission checking
+│   ├── test_odoo_client.py        # OdooClient read/write/delete operations
+│   ├── test_connection_pool.py    # Connection pooling and caching
+│   ├── test_connection_manager.py # Connection authentication and pooling
+│   ├── test_header_parser.py      # X-Auth-Credentials header parsing
+│   └── test_tools.py              # Tool implementations with mocking
+├── integration/                    # Integration tests (with app instance)
+│   ├── test_auth_endpoints.py     # /auth/generate and /auth/validate
+│   ├── test_health.py             # Health check endpoints
+│   └── test_tools_endpoints.py    # /tools/list and /tools/call
+└── conftest.py                    # Shared pytest fixtures
 ```
 
-### Integration Tests (`tests/integration/`)
+### Test Coverage
 
-Test multiple components working together, with app instance but no external services.
+**Current Status:**
+- Overall coverage: **75.37%** ✅ (target: 75%+)
+- 142 tests passing
+- High coverage areas:
+  - Authentication & encryption: 89%
+  - Scope validation: 89%
+  - Connection pool: 100%
+  - Header parser: 100%
+- Lower coverage areas:
+  - Tool error paths: 82%
+  - Odoo client integration: 88%
+  - Server endpoints: 30% (requires live Odoo)
 
-**When to write:**
-- API endpoint behavior
-- Authentication workflows
-- Tool invocation (without actual Odoo calls)
+**Coverage Monitoring:**
 
-**Example:**
+This project uses [Codecov](https://codecov.io/) for continuous coverage tracking:
 
-```python
-import pytest
-from starlette.testclient import TestClient
-from src.server import app
+- View detailed coverage dashboard: https://codecov.io/gh/christopher-igweze/python-odoo-mcp
+- Coverage reports generated automatically on every push via GitHub Actions
+- Pull requests show coverage impact
 
-class TestAuthEndpoints:
-    @pytest.fixture
-    def client(self):
-        return TestClient(app)
+**Understanding Coverage Reports:**
+1. **Line Coverage** - Percentage of source code lines executed during tests
+2. **Branch Coverage** - All code paths (if/else) tested
+3. **Uncovered Lines** - Listed with file paths for targeting improvement
+4. **Trending** - See if coverage increases or decreases with each commit
 
-    def test_generate_api_key(self, client):
-        """Test API key generation endpoint"""
-        payload = {
-            "url": "https://test.odoo.com",
-            "database": "test_db",
-            "username": "user@test.com",
-            "password": "password123",
-            "scope": "res.partner:RWD"
-        }
-        response = client.post("/auth/generate", json=payload)
-        assert response.status_code == 200
-        data = response.json()
-        assert "api_key" in data
-        assert "user" in data
+**Generate Local Reports:**
+
+```bash
+# Run tests with coverage
+pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
+
+# View in browser
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
 ```
 
-### E2E Tests (`tests/e2e/`)
+### Testing Health Check
 
-Test against live deployments (optional, for coverage measurement).
+```bash
+curl http://localhost:3000/health
+```
 
-**When to use:**
-- Measuring coverage of tool implementations
-- Testing against real Odoo instances
-- Integration testing with external systems
+### List Available Tools
 
-**Note:** These are temporary and should be deleted after use per clean slate requirement.
+```bash
+curl -X POST http://localhost:3000/tools/list
+```
 
-## GitHub Actions CI
+### Testing Scripts
 
-The project runs automated tests on:
+We provide a test script for quick integration testing:
 
-- Push to `main`, `develop`, `feature/*` branches
-- Pull requests to `main` and `develop`
+```bash
+./test_server.sh
+```
 
-**What runs:**
-- Unit and integration tests (Python 3.9, 3.10, 3.11)
-- Coverage report generation
-- Code quality checks (flake8, black, isort)
-- Security checks (bandit, safety)
+## Development Workflow
 
-**Before PR:**
-1. All tests must pass locally
-2. Coverage must not decrease
-3. No security warnings from bandit/safety
+### Micro-Commit Philosophy
 
-## Pull Request Process
+We follow the **micro-commit philosophy** - each commit should be a single, focused change:
 
-1. **Create feature branch:**
+```bash
+# ✅ GOOD: One focused change
+git commit -m "🔧 fix(scope): handle wildcard permission override"
+
+# ✅ GOOD: Another focused change
+git commit -m "✨ feat(tools): add search_count operation"
+
+# ❌ AVOID: Multiple unrelated changes
+git commit -m "🔧 fix multiple bugs and refactor"
+```
+
+### Commit Message Format
+
+Use the glassbear emoji + conventional commit format:
+
+```
+{emoji} {type}({scope}): {description}
+```
+
+**Emoji Guide:**
+- ✨ `feat` - New feature
+- 🐛 `fix` - Bug fix
+- 🧪 `test` - Tests or test improvements
+- 📝 `docs` - Documentation changes
+- 🔧 `chore` - Configuration, dependencies, non-code changes
+- 🎨 `style` - Code style/formatting (no logic change)
+- ♻️ `refactor` - Code refactoring (no feature/fix)
+
+**Examples:**
+```
+✨ feat(scope): add support for explicit permission denial
+🐛 fix(connection): handle disconnection in pool
+🧪 test(tools): add comprehensive error handling tests
+📝 docs(readme): update n8n integration guide
+🔧 chore(deps): upgrade cryptography library
+```
+
+### Code Style
+
+```bash
+# Check formatting
+black --check src tests
+
+# Format code
+isort src tests
+black src tests
+
+# All together
+./test_server.sh  # runs checks before tests
+```
+
+### Creating a Pull Request
+
+1. **Branch from main:**
    ```bash
+   git checkout main
+   git pull origin main
    git checkout -b feature/your-feature-name
    ```
 
-2. **Make micro-commits:**
+2. **Make focused commits:**
    ```bash
-   git commit -m "✨ feat(scope): add wildcard support"
-   git commit -m "🧪 test(scope): add wildcard tests"
+   git commit -m "✨ feat(feature): implement thing"
+   git commit -m "🧪 test(feature): add tests"
+   ```
+
+3. **Push and create PR:**
+   ```bash
    git push origin feature/your-feature-name
    ```
 
-3. **Push every 3-5 commits:**
+4. **PR should include:**
+   - Clear description of what changed and why
+   - Link to any related issues
+   - Test coverage for new code
+   - Updated documentation if needed
+
+### Coverage Requirements for Contributors
+
+When implementing new features:
+
+1. **Write tests alongside implementation**
+   - Don't write code first, add tests later
+   - Use TDD approach when possible
+
+2. **Aim for 80%+ coverage on new code**
+   - Run `pytest --cov` to see your coverage
+   - Target overall 75%+ coverage maintenance
+
+3. **Before pushing:**
    ```bash
-   git push origin feature/your-feature-name
+   pytest tests/ --cov=src --cov-report=term-missing
+   # Check that your new code is tested
    ```
 
-4. **Create PR when complete**
-   - Include clear description of changes
-   - Link related issues
-   - Ensure all tests pass in CI
+4. **After pushing:**
+   - Codecov will comment on your PR with coverage impact
+   - Address any coverage regressions before merging
 
-5. **Wait for approval**
-   - Don't merge without explicit confirmation
-   - Address review feedback with new commits
-   - Ensure CI passes after each update
+## Adding New Features
 
-6. **Merge to main**
-   - Squash or rebase if preferred
-   - Delete feature branch after merge
+### Step 1: Plan the Feature
+- Create an issue describing the feature
+- Discuss API design if adding endpoints
+- Consider test approach before coding
 
-## Code Style
-
-We follow PEP 8 with automatic formatting:
-
-- **Black** for code formatting (line length: 88)
-- **isort** for import sorting
-- **flake8** for linting
-
-Run before committing:
+### Step 2: Implement with Tests
 
 ```bash
-black src tests
-isort src tests
-flake8 src tests
+# Feature branch
+git checkout -b feature/my-new-feature
+
+# Write test first (TDD approach)
+# File: tests/unit/test_my_feature.py
+class TestMyFeature:
+    def test_something(self):
+        assert True
+
+# Implement the feature
+# File: src/my_module.py
+
+# Run tests to verify
+pytest tests/unit/test_my_feature.py -v
+
+# Check coverage
+pytest --cov=src tests/unit/test_my_feature.py
 ```
 
-## Documentation
+### Step 3: Document
 
-- Update README.md for user-facing changes
-- Update CONTRIBUTING.md for process changes
-- Add docstrings to new functions/classes
-- Document any new environment variables
+```bash
+# Update README if adding public features
+# Update docstrings in code
 
-Example docstring:
+git commit -m "📝 docs(readme): document new feature"
+```
+
+### Step 4: Submit PR
+
+Include in PR description:
+- What does this add?
+- Why was it needed?
+- How does someone use it?
+- Any breaking changes?
+
+## Debugging
+
+### Enable Debug Logging
+
+```bash
+# Set environment variable
+export LOG_LEVEL=DEBUG
+
+# Run server
+python -m src.server
+```
+
+### Test a Specific Component
+
+```bash
+# Test only authentication
+pytest tests/unit/test_encryption.py -v
+
+# Test with print statements
+pytest tests/unit/test_something.py -v -s
+```
+
+### Debug with pdb
 
 ```python
-def encrypt_credentials(self, credentials: Credentials) -> str:
-    """Encrypt credentials to encrypted API key.
+# In your test or code
+import pdb; pdb.set_trace()
 
-    Args:
-        credentials: Odoo credentials with url, database, username, password, scope
-
-    Returns:
-        Encrypted API key string
-
-    Raises:
-        ValueError: If credentials are invalid
-    """
+# Then run pytest with -s flag
+pytest tests/ -s
 ```
 
-## Security
+## Common Issues
 
-- Never commit real credentials or secrets
-- Use `.env` files for local development (in `.gitignore`)
-- Store `ENCRYPTION_KEY` as environment variable
-- Follow OWASP guidelines for authentication/encryption
+### Tests Fail: "No module named 'src'"
 
-## Coverage Monitoring with Codecov
+**Solution:** Make sure you're running pytest from the repo root:
+```bash
+cd /path/to/python-odoo-mcp
+pytest tests/
+```
 
-We use [Codecov](https://codecov.io/) to track test coverage over time and monitor code quality.
+### Coverage Not Generated
 
-### Setting Up Codecov (Maintainers Only)
+**Solution:** Make sure pytest-cov is installed:
+```bash
+pip install pytest-cov
+```
 
-1. **Sign up at Codecov:**
-   - Go to https://codecov.io/
-   - Sign in with GitHub account
-   - Grant access to `christopher-igweze/python-odoo-mcp` repository
-   - Codecov will automatically sync and start receiving coverage reports
+### Port 3000 Already in Use
 
-2. **Get Upload Token (Recommended):**
-   - Navigate to repository settings in Codecov dashboard
-   - Copy the "Repository Upload Token"
-   - Add to GitHub as a Secret:
-     1. Go to repository Settings → Secrets and variables → Actions
-     2. Click "New repository secret"
-     3. Name: `CODECOV_TOKEN`
-     4. Value: (paste token from Codecov)
-   - GitHub Actions will use this token to securely upload coverage
+**Solution:** Kill the process or use different port:
+```bash
+# Kill process using port 3000
+lsof -i :3000
+kill -9 <PID>
 
-3. **Verify Integration:**
-   - Push a commit to main or a feature branch
-   - GitHub Actions should run tests and upload coverage to Codecov
-   - Check Codecov dashboard to see coverage report
-   - PRs will show coverage impact comments
+# Or use different port
+PORT=3001 python -m src.server
+```
 
-### Understanding Coverage Reports
+## Performance Testing
 
-**What coverage measures:**
-- **Line coverage:** % of source code lines executed during tests
-- **Branch coverage:** All if/else paths tested
-- **Files:** Which files have gaps and need more tests
+We track performance metrics. To test local performance:
 
-**Reading reports:**
-- Red/uncovered lines = not tested
-- Green/covered lines = tested during test runs
-- Trending graphs show if coverage is improving
+```bash
+# Time test execution
+time pytest tests/integration/
 
-**Coverage impact on PRs:**
-- Shows lines added/removed/changed
-- Indicates if PR improves or decreases coverage
-- Comments on PR with summary
+# Profile specific test
+pytest tests/integration/test_tools_endpoints.py --profile
 
-### For Contributors
+# Check connection pool efficiency
+pytest tests/unit/test_connection_pool.py -v -s
+```
 
-When submitting PRs:
-1. Ensure new code has corresponding tests
-2. Aim for 80%+ coverage on files you modify
-3. Check local coverage: `pytest --cov=src --cov-report=html`
-4. Codecov will comment automatically if coverage drops
+## Getting Help
 
-## Need Help?
+- **Questions?** Open an issue with `[question]` label
+- **Bug reports?** Include: Python version, error message, steps to reproduce
+- **Feature requests?** Describe use case and expected behavior
 
-- Check existing issues and PRs
-- Review test examples in `tests/`
-- Read function docstrings in `src/`
-- Ask in GitHub discussions
+## License
 
-Thank you for contributing to Python Odoo MCP!
+By contributing, you agree that your contributions will be licensed under the MIT License.
+
+---
+
+Thank you for contributing to make Python Odoo MCP Server better! 🙏
