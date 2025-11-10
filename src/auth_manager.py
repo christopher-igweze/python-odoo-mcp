@@ -12,6 +12,13 @@ from src.config import config
 logger = logging.getLogger(__name__)
 
 
+def _get_key_fingerprint(key: bytes) -> str:
+    """Get a short fingerprint of the encryption key for logging"""
+    # Show first 8 and last 8 characters of the base64 key
+    key_str = key.decode() if isinstance(key, bytes) else key
+    return f"{key_str[:8]}...{key_str[-8:]}"
+
+
 class Credentials(BaseModel):
     """Odoo credentials model"""
 
@@ -38,7 +45,8 @@ class EncryptionManager:
         """Initialize encryption manager with encryption key"""
         try:
             self.cipher = Fernet(config.ENCRYPTION_KEY)
-            logger.debug("✓ Encryption manager initialized")
+            key_fp = _get_key_fingerprint(config.ENCRYPTION_KEY)
+            logger.debug(f"✓ Encryption manager initialized (key: {key_fp})")
         except Exception as e:
             logger.error(f"Failed to initialize encryption: {e}")
             raise
@@ -103,10 +111,18 @@ class EncryptionManager:
             return credentials
 
         except InvalidToken:
-            logger.error("Invalid API key: decryption failed")
+            current_key_fp = _get_key_fingerprint(config.ENCRYPTION_KEY)
+            api_key_sample = api_key[:32] + "..." if len(api_key) > 32 else api_key
+            logger.error(
+                f"Invalid API key: decryption failed. "
+                f"Current encryption key: {current_key_fp}. "
+                f"API key sample: {api_key_sample}. "
+                f"This usually means the API key was generated with a different encryption key. "
+                f"Ensure ENCRYPTION_KEY environment variable is set to the same value used when the key was generated."
+            )
             raise ValueError("Invalid API key")
         except json.JSONDecodeError:
-            logger.error("API key corrupted: invalid JSON")
+            logger.error("API key corrupted: invalid JSON after decryption")
             raise ValueError("Corrupted API key")
         except Exception as e:
             logger.error(f"Decryption failed: {e}")

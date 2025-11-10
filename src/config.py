@@ -1,9 +1,19 @@
 """Configuration management for MCP Server"""
 
+import logging
 import os
 from typing import Optional
 
 from cryptography.fernet import Fernet
+
+logger = logging.getLogger(__name__)
+
+
+def _get_key_fingerprint(key: bytes) -> str:
+    """Get a short fingerprint of the encryption key for logging"""
+    # Show first 8 and last 8 characters of the base64 key
+    key_str = key.decode() if isinstance(key, bytes) else key
+    return f"{key_str[:8]}...{key_str[-8:]}"
 
 
 def _init_encryption_key() -> bytes:
@@ -21,6 +31,9 @@ def _init_encryption_key() -> bytes:
             )
             # Validate by attempting to create a Fernet instance
             Fernet(key)
+            logger.info(
+                f"✓ Using persistent ENCRYPTION_KEY from environment (fingerprint: {_get_key_fingerprint(key)})"
+            )
             return key
         except Exception as e:
             raise ValueError(
@@ -28,7 +41,12 @@ def _init_encryption_key() -> bytes:
             )
     else:
         # Generate a new key if not provided
-        return Fernet.generate_key()
+        new_key = Fernet.generate_key()
+        logger.warning(
+            f"⚠️  NO ENCRYPTION_KEY set in environment. Generated temporary key (fingerprint: {_get_key_fingerprint(new_key)}). "
+            f"This will cause API keys to become invalid on restart. Set ENCRYPTION_KEY env var for production!"
+        )
+        return new_key
 
 
 class Config:
