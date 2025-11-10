@@ -3,9 +3,20 @@
 [![codecov](https://codecov.io/gh/christopher-igweze/python-odoo-mcp/branch/main/graph/badge.svg)](https://codecov.io/gh/christopher-igweze/python-odoo-mcp)
 [![Tests](https://github.com/christopher-igweze/python-odoo-mcp/workflows/Tests/badge.svg)](https://github.com/christopher-igweze/python-odoo-mcp/actions)
 
-Multi-tenant Odoo XML-RPC MCP server with scope-based access control, connection pooling, and HTTP Stream transport.
+HTTP REST API for Odoo automation with encrypted API keys, multi-tenant scope isolation, and connection pooling. Built for n8n, webhooks, and custom integrations.
 
 **Repository:** https://github.com/christopher-igweze/python-odoo-mcp
+
+## Features
+
+✅ **Multi-tenant** - Different users, different Odoo instances, same server
+✅ **Scope-based access control** - Fine-grained R/W/D permissions per model
+✅ **Encrypted API keys** - Fernet encryption for secure key storage
+✅ **Connection pooling** - Caches authenticated sessions with TTL
+✅ **n8n ready** - Drop-in HTTP integration for automation workflows
+✅ **Complete CRUD** - Search, read, create, write, delete any Odoo model
+✅ **Error handling** - Clear permission, auth, and connection errors
+✅ **Async support** - Full async/await for high concurrency
 
 ## Quick Start
 
@@ -129,37 +140,25 @@ Permissions:
 
 ## Architecture
 
+**Request Flow:**
+
 ```
-┌─ n8n ─────────────────────────────────┐
-│ HTTP Request with X-Auth-Credentials  │
-└────────────┬────────────────────────────┘
-             │ (base64 JSON with credentials + scope)
-             ▼
-┌─ Python Odoo MCP ─────────────────────┐
-│ ┌──────────────────────────────────┐  │
-│ │ Authentication & Scope Validator │  │
-│ └──────────┬───────────────────────┘  │
-│            │                           │
-│ ┌──────────▼───────────────────────┐  │
-│ │ Connection Pool (Scope-Aware)    │  │
-│ │ Caches connections per user+scope│  │
-│ └──────────┬───────────────────────┘  │
-│            │                           │
-│ ┌──────────▼───────────────────────┐  │
-│ │ Odoo Client                      │  │
-│ │ - Validates scope before every op│  │
-│ │ - Uses pooled connections        │  │
-│ └──────────┬───────────────────────┘  │
-│            │                           │
-│ ┌──────────▼───────────────────────┐  │
-│ │ Tools (search, read, write, etc) │  │
-│ │ Execute on Odoo via XML-RPC     │  │
-│ └──────────────────────────────────┘  │
-└─────────────────────────────────────────┘
-             │
-             ▼ (XML-RPC)
-         Odoo Instance
+HTTP Request (X-API-Key header)
+    ↓
+Authentication & Scope Validation
+    ↓
+Connection Pool (scope-aware caching)
+    ↓
+Odoo Client (validates permissions, executes operations)
+    ↓
+Odoo Instance (XML-RPC)
 ```
+
+**Key Components:**
+- **HTTP Server** - FastAPI REST API on port 3000
+- **Connection Pool** - Caches authenticated Odoo sessions with TTL and scope isolation
+- **Scope Validator** - Enforces R/W/D permissions per model
+- **Odoo Client** - XML-RPC wrapper with automatic connection pooling
 
 ## Environment Variables
 
@@ -191,134 +190,12 @@ PORT=3000
 6. Get public URL from Coolify
 7. Use in n8n: `https://your-mcp-xxx.coolify.io/tools/call`
 
-## Testing
+## Testing & Development
 
-### Unit and Integration Tests
-
-The project includes comprehensive unit and integration tests using pytest:
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run with coverage report
-pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
-
-# Run specific test file
-pytest tests/unit/test_encryption.py -v
-
-# Run tests matching pattern
-pytest -k "scope_validator" -v
-
-# Run with markers
-pytest -m unit          # Unit tests only
-pytest -m integration   # Integration tests only
-pytest -m slow         # Slow/e2e tests
-```
-
-### Test Structure
-
-```
-tests/
-├── unit/                           # Unit tests (no external dependencies)
-│   ├── test_config.py             # Config management & encryption key validation
-│   ├── test_encryption.py         # Credential encryption/decryption
-│   └── test_scope_validator.py    # Scope parsing and permission checking
-├── integration/                    # Integration tests (with app instance)
-│   ├── test_auth_endpoints.py     # /auth/generate and /auth/validate
-│   ├── test_health.py             # Health check endpoints
-│   └── test_tools_endpoints.py    # /tools/list and /tools/call
-└── conftest.py                    # Shared pytest fixtures
-```
-
-### Health Check
-
-```bash
-curl http://localhost:3000/health
-```
-
-### List Tools
-
-```bash
-curl -X POST http://localhost:3000/tools/list
-```
-
-### Test with Script
-
-```bash
-./test_server.sh
-```
-
-### Test in n8n
-
-Import `test_n8n.json` workflow for examples.
-
-### Coverage Goals
-
-Current coverage: 46% (61 tests passing)
-- **High coverage:** Authentication, encryption, scope validation (89%), connection pool management
-- **Low coverage:** Tool implementations, Odoo client methods (require live Odoo instance)
-
-To improve coverage:
-1. Run tests against real Odoo instance (see Phase 8 in development history)
-2. Mock Odoo responses in unit tests
-3. Use testcontainers for Odoo in CI/CD
-
-### Coverage Monitoring with Codecov
-
-This project uses [Codecov](https://codecov.io/) for continuous coverage tracking and reporting.
-
-**Coverage Tracking:**
-- View detailed coverage dashboard: https://codecov.io/gh/christopher-igweze/python-odoo-mcp
-- Coverage reports generated automatically on every push via GitHub Actions
-- Pull requests show coverage impact (lines added/removed/changed)
-- Coverage history graphs track improvements over time
-
-**Current Status:**
-- Overall coverage: 46% (target: 75%+)
-- Authentication & encryption: 89% ✅
-- Scope validation: 89% ✅
-- Tools & Odoo client: 15-29% (improving with mocked tests)
-
-**Understanding Coverage Reports:**
-1. **Line Coverage** - Percentage of source code lines executed during tests
-2. **Branch Coverage** - All code paths (if/else) tested
-3. **Uncovered Lines** - Listed with file paths for targeting improvement
-4. **Trending** - See if coverage increases or decreases with each commit
-
-**Local Coverage Reports:**
-
-Generate and view HTML coverage reports locally:
-
-```bash
-# Run tests with coverage
-pytest tests/ --cov=src --cov-report=html --cov-report=term-missing
-
-# View in browser
-open htmlcov/index.html  # macOS
-# or
-xdg-open htmlcov/index.html  # Linux
-```
-
-**For Contributors:**
-
-When implementing new features:
-1. Write tests alongside implementation
-2. Aim for 80%+ coverage on new code
-3. Run `pytest` to see coverage before pushing
-4. Codecov will comment on PRs showing impact
-5. Target overall coverage of 75%+
-
-## Features
-
-✅ **Multi-tenant** - Different users, different Odoo instances, same server
-✅ **Scope-based access control** - Fine-grained R/W/D permissions per model
-✅ **Connection pooling** - Caches authenticated sessions, scope-aware
-✅ **HTTP Stream MCP** - Works with n8n's official MCP node
-✅ **Stateless** - Each request is self-contained
-✅ **Error handling** - Clear permission errors, auth errors, connection errors
-✅ **Thread-safe** - RLock for pool access
-✅ **Async** - Full async/await support
+See [CONTRIBUTING.md](CONTRIBUTING.md) for:
+- Running tests with pytest
+- Test coverage information
+- Development workflow and micro-commits
 
 ## Error Handling
 
@@ -331,25 +208,22 @@ All errors return `{"error": "...", "status": "..."}`:
 - `tool_not_found` - Unknown tool name
 - `odoo_error` - Odoo RPC error
 
-## Development
+## Note: REST API vs MCP Protocol
 
-Micro-commit workflow with glassbear format:
+This project exposes **MCP-style tools via HTTP REST API**, which is different from the official MCP protocol:
 
-```bash
-# Read the requirements
-cat requirements.txt
+- **This server:** REST API with HTTP endpoints (`/tools/list`, `/tools/call`)
+- **Official MCP protocol:** Used by Claude Desktop, Cursor, and other AI assistants via stdio or websockets
 
-# Make a change, test it
-# Then commit
-git commit -m "🔧 fix(scope): handle wildcard override"
-git push origin main
-```
+For AI assistant integration, see the excellent [ivnvxd/mcp-server-odoo](https://github.com/ivnvxd/mcp-server-odoo) which uses true MCP protocol.
 
-See `.git/logs` for commit history.
+This REST API approach is ideal for **n8n, webhooks, and automation platforms** where HTTP is more practical.
 
 ## License
 
-This project is open source.
+MIT License - see [LICENSE](LICENSE) for details.
+
+This means you can freely use, modify, and distribute this software as long as you include the license notice.
 
 ## Support
 
